@@ -12,6 +12,10 @@ import {
 import { buildFallbackResponse, buildSystemPrompt, Summary } from "@/lib/chat/logic";
 import { ChatMessageSender } from "@prisma/client";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 const summarySchema = z
   .object({
     location: z.string().optional(),
