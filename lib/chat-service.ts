@@ -1,4 +1,4 @@
-import { ChatMessageSender, ChatSession, ChatSessionStatus } from "@prisma/client";
+import { ChatMessageSender, ChatSession, ChatSessionStatus, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export async function getOrCreateActiveSession(userId: string, sessionId?: string): Promise<ChatSession> {
@@ -45,14 +45,14 @@ export async function appendMessage(
   sessionId: string,
   sender: ChatMessageSender,
   content: string,
-  metadata?: Record<string, unknown>
+  metadata?: Prisma.InputJsonValue
 ) {
   return prisma.chatMessage.create({
     data: {
       sessionId,
       sender,
       content,
-      metadata
+      metadata: metadata ?? undefined
     }
   });
 }
@@ -111,9 +111,9 @@ export async function resetSession(userId: string) {
   });
 }
 
-export async function updateSessionContext(sessionId: string, context: unknown) {
+export async function updateSessionContext(sessionId: string, context?: Prisma.InputJsonValue) {
   await prisma.chatSession.update({
     where: { id: sessionId },
-    data: { context }
+    data: { context: context ?? Prisma.JsonNull }
   });
 }
