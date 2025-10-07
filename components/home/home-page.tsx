@@ -389,7 +389,11 @@ export function HomePage(): JSX.Element {
     const inviteCode = `${advisorName}-${Date.now().toString(36)}-${Math.random()
       .toString(36)
       .slice(2, 6)}`;
-    const link = `https://goldenbridge.ai/invite/${inviteCode}`;
+    const baseUrl =
+      (typeof window !== "undefined" && window.location.origin)
+        || process.env.NEXT_PUBLIC_APP_URL
+        || "https://goldenbridge.ai";
+    const link = `${baseUrl.replace(/\/$/, "")}/invite/${inviteCode}`;
     setReferralLink(link);
     setReferralStatus(
       recipient
