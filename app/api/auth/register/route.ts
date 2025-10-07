@@ -22,7 +22,18 @@ export async function POST(request: Request) {
 
   const parsed = registerSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().formErrors.join(", ") }, { status: 400 });
+    const flattened = parsed.error.flatten();
+    const fieldMessages = Object.entries(flattened.fieldErrors).flatMap(([field, errors]) =>
+      (errors ?? []).map((message) => `${field}: ${message}`)
+    );
+    const combined = [...flattened.formErrors, ...fieldMessages]
+      .map((message) => message.trim())
+      .filter(Boolean);
+
+    return NextResponse.json(
+      { error: combined.join(" | ") || "Invalid registration data." },
+      { status: 400 }
+    );
   }
 
   const { name, email, password, role } = parsed.data;
@@ -34,14 +45,19 @@ export async function POST(request: Request) {
 
   const passwordHash = await hash(password, 10);
 
-  await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      role
-    }
-  });
+  try {
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role
+      }
+    });
+  } catch (error) {
+    console.error("Register API error", error);
+    return NextResponse.json({ error: "Unable to create account. Please try again." }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
