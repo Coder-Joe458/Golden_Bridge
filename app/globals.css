@@ -7,7 +7,16 @@
 }
 
 body {
-  @apply font-sans bg-slate-950 text-slate-100;
+  @apply bg-slate-950 font-sans text-slate-100;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-semibold text-slate-100;
 }
 
 .gradient-border {

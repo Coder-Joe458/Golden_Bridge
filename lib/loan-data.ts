@@ -225,9 +225,3 @@ export const loanProducts: LoanProduct[] = [
     brokerCode: "C.Jones@***"
   }
 ];
-
-export const chatQuestions: string[] = [
-  "Where is the property you plan to finance? Let me know the city, state, or zip code.",
-  "What timeline are you targeting for closing? Have you already signed a purchase contract?",
-  "Which loan factors matter the most to you? For example: rate, loan-to-value, speed to close, or document requirements."
-];

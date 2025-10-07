@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  role         UserRole @default(BORROWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  borrowerProfile        BorrowerProfile?
+  brokerProfile          BrokerProfile?
+  chatSessions           ChatSession[]
+  recommendations        Recommendation[]
+  referralInvites        ReferralInvite[] @relation("ReferralCreator")
+  receivedReferrals      ReferralInvite[] @relation("ReferralRecipient")
+  brokerInterestsSent    BrokerInterest[] @relation("BrokerInterestBroker")
+  brokerInterestsReceived BrokerInterest[] @relation("BrokerInterestBorrower")
+}
+
+enum UserRole {
+  BORROWER
+  BROKER
+  ADMIN
+}
+
+model BorrowerProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  city            String?
+  state           String?
+  creditScore     Int?
+  targetAmount    Decimal? @db.Decimal(15, 2)
+  priorityFocus   String?
+  employmentType  String?
+  timeline        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BrokerProfile {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  company        String?
+  headline       String?
+  bio            String?
+  licenseStates  String[]
+  yearsExperience Int?
+  website        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  context   Json?
+  status    ChatSessionStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, createdAt])
+}
+
+model ChatMessage {
+  id         String       @id @default(cuid())
+  sessionId  String
+  sender     ChatMessageSender
+  content    String
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model Recommendation {
+  id              String   @id @default(cuid())
+  userId          String
+  productId       String
+  productName     String
+  state           String
+  rateDisplay     String
+  ltvDisplay      String
+  closingSpeed    String
+  successRate     Int
+  criteria        String[]
+  lenderName      String?
+  brokerCode      String?
+  refreshIndex    Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brokerInterests BrokerInterest[] @relation("RecommendationBrokerInterest")
+
+  @@index([userId, createdAt])
+}
+
+model ReferralInvite {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  creatorId     String
+  recipientEmail String?
+  recipientId   String?
+  status        ReferralStatus  @default(PENDING)
+  expiresAt     DateTime?
+  acceptedAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  creator   User @relation("ReferralCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  recipient User? @relation("ReferralRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  @@index([code])
+  @@index([creatorId])
+  @@index([recipientEmail])
+}
+
+model BrokerInterest {
+  id                 String            @id @default(cuid())
+  brokerId           String
+  borrowerId         String
+  recommendationId   String?
+  status             BrokerInterestStatus @default(PENDING)
+  note               String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  broker          User @relation("BrokerInterestBroker", fields: [brokerId], references: [id], onDelete: Cascade)
+  borrower        User @relation("BrokerInterestBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  recommendation  Recommendation? @relation("RecommendationBrokerInterest", fields: [recommendationId], references: [id], onDelete: SetNull)
+
+  @@index([brokerId, createdAt])
+  @@index([borrowerId, createdAt])
+}
+
+enum ChatSessionStatus {
+  ACTIVE
+  ARCHIVED
+  CLOSED
+}
+
+enum ChatMessageSender {
+  USER
+  AI
+  BROKER
+  SYSTEM
+}
+
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum BrokerInterestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
