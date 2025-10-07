@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { fetchActiveSessionWithMessages, resetSession } from "@/lib/chat-service";
 import { ChatMessageSender } from "@prisma/client";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 function mapSender(sender: ChatMessageSender): "ai" | "user" | "system" {
   switch (sender) {
     case ChatMessageSender.AI:
