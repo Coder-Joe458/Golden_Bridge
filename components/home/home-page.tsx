@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { loanDirectory, loanProducts, type LoanProduct } from "@/lib/loan-data";
+import { loanDirectory } from "@/lib/loan-data";
 import {
   buildFallbackResponse,
   chatQuestions,
@@ -17,6 +17,23 @@ type Message = {
   id: string;
   author: "ai" | "user";
   content: string;
+};
+
+type RecommendedBroker = {
+  id: string;
+  lenderName: string;
+  company: string | null;
+  headline: string | null;
+  notes: string | null;
+  licenseStates: string[];
+  minRate: number | null;
+  maxRate: number | null;
+  loanPrograms: string[];
+  minCreditScore: number | null;
+  maxLoanToValue: number | null;
+  yearsExperience: number | null;
+  website: string | null;
+  contactEmail: string | null;
 };
 
 type ProfileFormState = {
@@ -88,6 +105,9 @@ export function HomePage(): JSX.Element {
   const [referralStatus, setReferralStatus] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [voiceSupported, setVoiceSupported] = useState<boolean>(true);
+  const [recommendations, setRecommendations] = useState<RecommendedBroker[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState<boolean>(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -158,6 +178,7 @@ export function HomePage(): JSX.Element {
       setMessages(introMessages);
       setQuestionIndex(1);
       setHasRecapped(false);
+      setRecommendations([]);
       return;
     }
 
@@ -219,10 +240,62 @@ export function HomePage(): JSX.Element {
     };
   }, [session?.user?.id]);
 
-  const recommendations = useMemo(
-    () => pickRecommendations(summary, refreshKey),
-    [summary, refreshKey]
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+    setRecommendationsLoading(true);
+    setRecommendationError(null);
+
+    const payloadSummary = {
+      location: summary.location ?? profile.city ?? null,
+      priority: summary.priority ?? determinePriority(profile.priority) ?? null,
+      credit: summary.credit ?? (profile.credit ? profile.credit.toString() : null),
+      amount:
+        summary.amount !== undefined
+          ? summary.amount
+          : profile.amount
+          ? Number(profile.amount)
+          : null
+    };
+
+    const hasMeaningfulInput =
+      payloadSummary.location || payloadSummary.priority || payloadSummary.credit || payloadSummary.amount;
+
+    const requestBody = {
+      summary: hasMeaningfulInput ? payloadSummary : {},
+      variant: refreshKey
+    };
+
+    fetch("/api/recommendations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({ error: "Unable to fetch recommendations" }));
+          throw new Error(body.error ?? "Unable to fetch recommendations");
+        }
+        return response.json() as Promise<{ recommendations: RecommendedBroker[] }>;
+      })
+      .then((data) => {
+        setRecommendations(data.recommendations ?? []);
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") return;
+        console.error("Recommendation fetch error", error);
+        setRecommendationError(error.message ?? "Unable to fetch recommendations.");
+        setRecommendations([]);
+      })
+      .finally(() => {
+        setRecommendationsLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [summary.location, summary.priority, summary.credit, summary.amount, profile.city, profile.priority, profile.credit, profile.amount, refreshKey]);
+
 
   const handleChatSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -682,46 +755,88 @@ export function HomePage(): JSX.Element {
           </header>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {recommendations.map((product) => (
-              <article
-                key={product.id}
-                className="flex h-full flex-col gap-4 rounded-3xl border border-white/5 bg-slate-900/80 p-6 shadow-xl shadow-black/20"
-              >
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">{product.state}</p>
-                  <h3 className="mt-1 text-lg font-semibold text-white">{product.name}</h3>
-                </div>
-                <ul className="flex flex-wrap gap-2 text-xs text-slate-300">
-                  <li className="rounded-full bg-white/5 px-3 py-1">{product.rate}</li>
-                  <li className="rounded-full bg-white/5 px-3 py-1">{product.ltv}</li>
-                  <li className="rounded-full bg-white/5 px-3 py-1">{product.closingSpeed}</li>
-                  <li className="rounded-full bg-white/5 px-3 py-1">Close success {product.successRate}%</li>
-                </ul>
-                <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                  {product.criteria.map((criteria) => (
-                    <span key={criteria} className="rounded-full border border-white/10 px-3 py-1">
-                      {criteria}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-slate-400">
-                  Broker handle: <span className="text-slate-200">{product.brokerCode}</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    displayStatus(
-                      setMatchStatus,
-                      "Agent notified within the platform. Expect a follow-up shortly."
-                    )
-                  }
-                  className="mt-auto rounded-full border border-brand-primary/60 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
+            {recommendations.map((broker) => {
+              const rateLabel = (() => {
+                if (broker.minRate !== null && broker.maxRate !== null) {
+                  return `${broker.minRate.toFixed(2)}% - ${broker.maxRate.toFixed(2)}%`;
+                }
+                if (broker.minRate !== null) {
+                  return `${broker.minRate.toFixed(2)}%`;
+                }
+                if (broker.maxRate !== null) {
+                  return `${broker.maxRate.toFixed(2)}% cap`;
+                }
+                return "Rate info on request";
+              })();
+
+              return (
+                <article
+                  key={broker.id}
+                  className="flex h-full flex-col gap-4 rounded-3xl border border-white/5 bg-slate-900/80 p-6 shadow-xl shadow-black/20"
                 >
-                  Notify the platform broker
-                </button>
-              </article>
-            ))}
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-slate-400">
+                      {broker.licenseStates.length ? broker.licenseStates.join(", ") : "Nationwide availability"}
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-white">
+                      {broker.company ?? broker.lenderName}
+                    </h3>
+                    {broker.headline && <p className="mt-1 text-sm text-slate-300">{broker.headline}</p>}
+                  </div>
+                  <ul className="flex flex-wrap gap-2 text-xs text-slate-300">
+                    <li className="rounded-full bg-white/5 px-3 py-1">Rate: {rateLabel}</li>
+                    {broker.maxLoanToValue !== null && (
+                      <li className="rounded-full bg-white/5 px-3 py-1">LTV up to {broker.maxLoanToValue}%</li>
+                    )}
+                    {broker.minCreditScore !== null && (
+                      <li className="rounded-full bg-white/5 px-3 py-1">Credit {broker.minCreditScore}+</li>
+                    )}
+                    {broker.yearsExperience !== null && (
+                      <li className="rounded-full bg-white/5 px-3 py-1">{broker.yearsExperience}+ yrs experience</li>
+                    )}
+                  </ul>
+                  {broker.loanPrograms.length > 0 && (
+                    <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                      {broker.loanPrograms.map((program) => (
+                        <span key={program} className="rounded-full border border-white/10 px-3 py-1">
+                          {program}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {broker.notes && (
+                    <p className="text-xs text-slate-400">
+                      {broker.notes.length > 220 ? `${broker.notes.slice(0, 220)}…` : broker.notes}
+                    </p>
+                  )}
+                  {broker.website && (
+                    <a
+                      href={broker.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-brand-primary hover:underline"
+                    >
+                      Visit broker site
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      displayStatus(
+                        setMatchStatus,
+                        `${broker.lenderName} 已收到通知，平台将协助后续对接。`
+                      )
+                    }
+                    className="mt-auto rounded-full border border-brand-primary/60 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
+                  >
+                    Notify the platform broker
+                  </button>
+                </article>
+              );
+            })}
           </div>
+          {recommendationsLoading && <p className="text-sm text-slate-400">Updating recommendations…</p>}
+          {recommendationError && <p className="text-sm text-red-300">{recommendationError}</p>}
           {matchStatus && <p className="text-sm text-emerald-300">{matchStatus}</p>}
           <div className="flex justify-end">
             <button
@@ -952,105 +1067,3 @@ function summaryFromProfile(profile: ProfileFormState): Summary {
   };
 }
 
-function pickRecommendations(summary: Summary, refreshSeed: number): LoanProduct[] {
-  if (!loanProducts.length) return [];
-  let pool = [...loanProducts];
-
-  if (summary.location) {
-    const state = normalizeState(summary.location);
-    const matches = pool.filter((product) => normalizeState(product.state) === state);
-    if (matches.length > 0) {
-      pool = matches;
-    }
-  }
-
-  if (summary.priority) {
-    if (summary.priority === "rate") {
-      pool.sort((a, b) => extractRate(a.rate) - extractRate(b.rate));
-    }
-    if (summary.priority === "ltv") {
-      pool.sort((a, b) => extractLtv(b.ltv) - extractLtv(a.ltv));
-    }
-    if (summary.priority === "speed") {
-      pool.sort((a, b) => extractDays(a.closingSpeed) - extractDays(b.closingSpeed));
-    }
-    if (summary.priority === "documents") {
-      pool.sort((a, b) => documentScore(b) - documentScore(a));
-    }
-  } else {
-    pool.sort((a, b) => b.successRate - a.successRate);
-  }
-
-  if (pool.length <= 3) {
-    return pool;
-  }
-
-  const offset = refreshSeed % pool.length;
-  const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
-  return rotated.slice(0, 3);
-}
-
-function extractRate(rate: string): number {
-  const value = Number(rate.replace(/[^\d.]/g, ""));
-  return Number.isNaN(value) ? 99 : value;
-}
-
-function extractLtv(ltv: string): number {
-  const value = Number(ltv.replace(/[^\d]/g, ""));
-  return Number.isNaN(value) ? 0 : value;
-}
-
-function extractDays(text: string): number {
-  const match = text.match(/(\d+)/);
-  return match ? Number(match[1]) : 999;
-}
-
-function documentScore(product: LoanProduct): number {
-  return product.criteria.reduce((total, label) => {
-    if (/alt doc|no doc|streamlined|minimal docs|low doc|reduced docs/i.test(label)) {
-      return total + 2;
-    }
-    if (/self-employed|bank statement|remote|relocation/i.test(label)) {
-      return total + 1;
-    }
-    return total;
-  }, 0);
-}
-
-function normalizeState(input: string): string {
-  const cleaned = input.toLowerCase().replace(/[^a-z\s]/g, "").trim();
-  const map: Record<string, string> = {
-    ca: "california",
-    california: "california",
-    "san francisco": "california",
-    "los angeles": "california",
-    ny: "new york",
-    "new york": "new york",
-    "new york city": "new york",
-    wa: "washington",
-    washington: "washington",
-    seattle: "washington",
-    ma: "massachusetts",
-    massachusetts: "massachusetts",
-    boston: "massachusetts",
-    va: "virginia",
-    virginia: "virginia",
-    tx: "texas",
-    texas: "texas",
-    dallas: "texas",
-    austin: "texas",
-    fl: "florida",
-    florida: "florida",
-    miami: "florida",
-    nc: "north carolina",
-    "north carolina": "north carolina",
-    charlotte: "north carolina",
-    co: "colorado",
-    colorado: "colorado",
-    denver: "colorado",
-    il: "illinois",
-    illinois: "illinois",
-    chicago: "illinois"
-  };
-  return map[cleaned] || cleaned;
-}
