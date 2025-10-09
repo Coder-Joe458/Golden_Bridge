@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { loanDirectory, loanProducts, type LoanProduct } from "@/lib/loan-data";
@@ -424,6 +425,14 @@ export function HomePage(): JSX.Element {
                   <span className="hidden text-sm text-slate-200 sm:inline">
                     {session.user.name ?? session.user.email} · {session.user.role ?? "Borrower"}
                   </span>
+                  {(session.user.role === "BROKER" || session.user.role === "ADMIN") && (
+                    <Link
+                      href="/dashboard/broker"
+                      className="rounded-full border border-brand-primary/40 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:-translate-y-0.5 hover:bg-brand-primary/10"
+                    >
+                      Broker dashboard
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => signOut()}
