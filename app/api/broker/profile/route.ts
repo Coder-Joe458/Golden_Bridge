@@ -14,22 +14,26 @@ const brokerProfileSchema = z.object({
     .trim()
     .max(120, "Company name is too long")
     .optional()
+    .nullable()
     .transform((val) => (val && val.length ? val : null)),
   headline: z
     .string()
     .trim()
     .max(160, "Headline is too long")
     .optional()
+    .nullable()
     .transform((val) => (val && val.length ? val : null)),
   bio: z
     .string()
     .trim()
     .max(2000, "Bio must be under 2000 characters")
     .optional()
+    .nullable()
     .transform((val) => (val && val.length ? val : null)),
   licenseStates: z
     .array(z.string().trim().regex(/^[A-Za-z]{2}$/u, "Use two-letter state codes"))
     .optional()
+    .nullable()
     .transform((val) => (val ? val.map((state) => state.toUpperCase()) : [])),
   yearsExperience: z
     .number({ invalid_type_error: "Years of experience must be a number" })
@@ -45,6 +49,7 @@ const brokerProfileSchema = z.object({
     .url("Please provide a valid URL")
     .optional()
     .or(z.literal(""))
+    .nullable()
     .transform((val) => (val && val.length ? val : null)),
   minRate: z
     .number({ invalid_type_error: "Minimum rate must be a number" })
@@ -69,6 +74,7 @@ const brokerProfileSchema = z.object({
         .max(120, "Loan programme description is too long")
     )
     .optional()
+    .nullable()
     .transform((val) => (val ? val : [])),
   minCreditScore: z
     .number({ invalid_type_error: "Minimum credit score must be a number" })
@@ -91,6 +97,7 @@ const brokerProfileSchema = z.object({
     .trim()
     .max(2000, "Notes must be under 2000 characters")
     .optional()
+    .nullable()
     .transform((val) => (val && val.length ? val : null))
 });
 
