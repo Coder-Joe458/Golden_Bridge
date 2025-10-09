@@ -58,6 +58,12 @@ model BrokerProfile {
   licenseStates  String[]
   yearsExperience Int?
   website        String?
+  minRate        Decimal? @db.Decimal(6, 3)
+  maxRate        Decimal? @db.Decimal(6, 3)
+  loanPrograms   String[] @default([])
+  minCreditScore Int?
+  maxLoanToValue Int?
+  notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

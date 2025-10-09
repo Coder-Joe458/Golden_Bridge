@@ -45,6 +45,52 @@ const brokerProfileSchema = z.object({
     .url("Please provide a valid URL")
     .optional()
     .or(z.literal(""))
+    .transform((val) => (val && val.length ? val : null)),
+  minRate: z
+    .number({ invalid_type_error: "Minimum rate must be a number" })
+    .min(0, "Minimum rate must be at least 0")
+    .max(99, "Minimum rate is too high")
+    .optional()
+    .nullable()
+    .transform((val) => (typeof val === "number" ? val : null)),
+  maxRate: z
+    .number({ invalid_type_error: "Maximum rate must be a number" })
+    .min(0, "Maximum rate must be at least 0")
+    .max(99, "Maximum rate is too high")
+    .optional()
+    .nullable()
+    .transform((val) => (typeof val === "number" ? val : null)),
+  loanPrograms: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1, "Loan programme cannot be empty")
+        .max(120, "Loan programme description is too long")
+    )
+    .optional()
+    .transform((val) => (val ? val : [])),
+  minCreditScore: z
+    .number({ invalid_type_error: "Minimum credit score must be a number" })
+    .int("Minimum credit score must be an integer")
+    .min(300, "Minimum credit score cannot be below 300")
+    .max(850, "Minimum credit score cannot exceed 850")
+    .optional()
+    .nullable()
+    .transform((val) => (typeof val === "number" ? val : null)),
+  maxLoanToValue: z
+    .number({ invalid_type_error: "Maximum LTV must be a number" })
+    .int("Maximum LTV must be an integer")
+    .min(10, "Maximum LTV should be at least 10")
+    .max(100, "Maximum LTV cannot exceed 100")
+    .optional()
+    .nullable()
+    .transform((val) => (typeof val === "number" ? val : null)),
+  notes: z
+    .string()
+    .trim()
+    .max(2000, "Notes must be under 2000 characters")
+    .optional()
     .transform((val) => (val && val.length ? val : null))
 });
 
@@ -101,6 +147,10 @@ export async function PUT(request: Request) {
 
   const data = parsed.data;
 
+  if (data.minRate !== null && data.maxRate !== null && data.minRate > data.maxRate) {
+    return NextResponse.json({ error: "Maximum rate must be greater than minimum rate" }, { status: 400 });
+  }
+
   const profile = await prisma.brokerProfile.upsert({
     where: { userId: session.user.id },
     update: {
@@ -109,7 +159,13 @@ export async function PUT(request: Request) {
       bio: data.bio,
       licenseStates: data.licenseStates ?? [],
       yearsExperience: data.yearsExperience,
-      website: data.website
+      website: data.website,
+      minRate: data.minRate,
+      maxRate: data.maxRate,
+      loanPrograms: data.loanPrograms ?? [],
+      minCreditScore: data.minCreditScore,
+      maxLoanToValue: data.maxLoanToValue,
+      notes: data.notes
     },
     create: {
       userId: session.user.id,
@@ -118,7 +174,13 @@ export async function PUT(request: Request) {
       bio: data.bio,
       licenseStates: data.licenseStates ?? [],
       yearsExperience: data.yearsExperience,
-      website: data.website
+      website: data.website,
+      minRate: data.minRate,
+      maxRate: data.maxRate,
+      loanPrograms: data.loanPrograms ?? [],
+      minCreditScore: data.minCreditScore,
+      maxLoanToValue: data.maxLoanToValue,
+      notes: data.notes
     }
   });
 
