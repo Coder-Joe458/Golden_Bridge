@@ -149,30 +149,31 @@ export function BrokerProfileForm() {
       .map((value) => value.trim())
       .filter(Boolean);
 
+    const toOptionalString = (value: string) => {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    };
+
+    const toOptionalNumber = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed.length) return undefined;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
     const payload = {
-      company: formState.company.trim() || null,
-      headline: formState.headline.trim() || null,
-      bio: formState.bio.trim() || null,
+      company: toOptionalString(formState.company),
+      headline: toOptionalString(formState.headline),
+      bio: toOptionalString(formState.bio),
       licenseStates,
-      yearsExperience:
-        formState.yearsExperience.trim().length > 0
-          ? Number.parseInt(formState.yearsExperience.trim(), 10)
-          : null,
-      website: formState.website.trim() || null,
-      minRate:
-        formState.minRate.trim().length > 0 ? Number.parseFloat(formState.minRate.trim()) : null,
-      maxRate:
-        formState.maxRate.trim().length > 0 ? Number.parseFloat(formState.maxRate.trim()) : null,
-      loanPrograms,
-      minCreditScore:
-        formState.minCreditScore.trim().length > 0
-          ? Number.parseInt(formState.minCreditScore.trim(), 10)
-          : null,
-      maxLoanToValue:
-        formState.maxLoanToValue.trim().length > 0
-          ? Number.parseInt(formState.maxLoanToValue.trim(), 10)
-          : null,
-      notes: formState.notes.trim() || null
+      yearsExperience: toOptionalNumber(formState.yearsExperience)?.valueOf?.(),
+      website: toOptionalString(formState.website),
+      minRate: toOptionalNumber(formState.minRate),
+      maxRate: toOptionalNumber(formState.maxRate),
+      loanPrograms: loanPrograms.length ? loanPrograms : undefined,
+      minCreditScore: toOptionalNumber(formState.minCreditScore),
+      maxLoanToValue: toOptionalNumber(formState.maxLoanToValue),
+      notes: toOptionalString(formState.notes)
     };
 
     try {
