@@ -10,6 +10,12 @@ export type BrokerProfile = {
   licenseStates: string[];
   yearsExperience: number | null;
   website: string | null;
+  minRate: number | null;
+  maxRate: number | null;
+  loanPrograms: string[];
+  minCreditScore: number | null;
+  maxLoanToValue: number | null;
+  notes: string | null;
 };
 
 const defaultProfile: BrokerProfile = {
@@ -18,7 +24,13 @@ const defaultProfile: BrokerProfile = {
   bio: null,
   licenseStates: [],
   yearsExperience: null,
-  website: null
+  website: null,
+  minRate: null,
+  maxRate: null,
+  loanPrograms: [],
+  minCreditScore: null,
+  maxLoanToValue: null,
+  notes: null
 };
 
 export function BrokerProfileForm() {
@@ -30,7 +42,13 @@ export function BrokerProfileForm() {
     bio: "",
     licenseStates: "",
     yearsExperience: "",
-    website: ""
+    website: "",
+    minRate: "",
+    maxRate: "",
+    loanPrograms: "",
+    minCreditScore: "",
+    maxLoanToValue: "",
+    notes: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,7 +74,13 @@ export function BrokerProfileForm() {
           bio: data.profile.bio ?? "",
           licenseStates: (data.profile.licenseStates ?? []).join(", "),
           yearsExperience: data.profile.yearsExperience?.toString() ?? "",
-          website: data.profile.website ?? ""
+          website: data.profile.website ?? "",
+          minRate: data.profile.minRate?.toString() ?? "",
+          maxRate: data.profile.maxRate?.toString() ?? "",
+          loanPrograms: (data.profile.loanPrograms ?? []).join(", "),
+          minCreditScore: data.profile.minCreditScore?.toString() ?? "",
+          maxLoanToValue: data.profile.maxLoanToValue?.toString() ?? "",
+          notes: data.profile.notes ?? ""
         });
       } catch (err) {
         console.error(err);
@@ -80,13 +104,26 @@ export function BrokerProfileForm() {
       .map((val) => val.toUpperCase())
       .sort();
 
+    const normalizedPrograms = formState.loanPrograms
+      .split(",")
+      .map((val) => val.trim())
+      .filter(Boolean)
+      .sort();
+    const originalPrograms = [...(profile.loanPrograms ?? [])].map((val) => val.trim()).filter(Boolean).sort();
+
     return (
       (profile.company ?? "") !== formState.company.trim() ||
       (profile.headline ?? "") !== formState.headline.trim() ||
       (profile.bio ?? "") !== formState.bio.trim() ||
       JSON.stringify(normalizedStates) !== JSON.stringify(originalStates) ||
       (profile.yearsExperience?.toString() ?? "") !== formState.yearsExperience.trim() ||
-      (profile.website ?? "") !== formState.website.trim()
+      (profile.website ?? "") !== formState.website.trim() ||
+      (profile.minRate?.toString() ?? "") !== formState.minRate.trim() ||
+      (profile.maxRate?.toString() ?? "") !== formState.maxRate.trim() ||
+      JSON.stringify(normalizedPrograms) !== JSON.stringify(originalPrograms) ||
+      (profile.minCreditScore?.toString() ?? "") !== formState.minCreditScore.trim() ||
+      (profile.maxLoanToValue?.toString() ?? "") !== formState.maxLoanToValue.trim() ||
+      (profile.notes ?? "") !== formState.notes.trim()
     );
   }, [formState, profile]);
 
@@ -107,6 +144,11 @@ export function BrokerProfileForm() {
       .filter(Boolean)
       .map((value) => value.toUpperCase());
 
+    const loanPrograms = formState.loanPrograms
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
     const payload = {
       company: formState.company.trim() || null,
       headline: formState.headline.trim() || null,
@@ -116,7 +158,21 @@ export function BrokerProfileForm() {
         formState.yearsExperience.trim().length > 0
           ? Number.parseInt(formState.yearsExperience.trim(), 10)
           : null,
-      website: formState.website.trim() || null
+      website: formState.website.trim() || null,
+      minRate:
+        formState.minRate.trim().length > 0 ? Number.parseFloat(formState.minRate.trim()) : null,
+      maxRate:
+        formState.maxRate.trim().length > 0 ? Number.parseFloat(formState.maxRate.trim()) : null,
+      loanPrograms,
+      minCreditScore:
+        formState.minCreditScore.trim().length > 0
+          ? Number.parseInt(formState.minCreditScore.trim(), 10)
+          : null,
+      maxLoanToValue:
+        formState.maxLoanToValue.trim().length > 0
+          ? Number.parseInt(formState.maxLoanToValue.trim(), 10)
+          : null,
+      notes: formState.notes.trim() || null
     };
 
     try {
@@ -140,7 +196,13 @@ export function BrokerProfileForm() {
         bio: data.profile.bio ?? "",
         licenseStates: (data.profile.licenseStates ?? []).join(", "),
         yearsExperience: data.profile.yearsExperience?.toString() ?? "",
-        website: data.profile.website ?? ""
+        website: data.profile.website ?? "",
+        minRate: data.profile.minRate?.toString() ?? "",
+        maxRate: data.profile.maxRate?.toString() ?? "",
+        loanPrograms: (data.profile.loanPrograms ?? []).join(", "),
+        minCreditScore: data.profile.minCreditScore?.toString() ?? "",
+        maxLoanToValue: data.profile.maxLoanToValue?.toString() ?? "",
+        notes: data.profile.notes ?? ""
       });
     } catch (err) {
       console.error(err);
@@ -238,6 +300,77 @@ export function BrokerProfileForm() {
           </label>
         </fieldset>
 
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="minRate">
+            Introductory rate (from %)
+            <input
+              id="minRate"
+              type="number"
+              min={0}
+              max={99}
+              step="0.01"
+              value={formState.minRate}
+              onChange={handleChange}
+              placeholder="5.50"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="maxRate">
+            Introductory rate (to %)
+            <input
+              id="maxRate"
+              type="number"
+              min={0}
+              max={99}
+              step="0.01"
+              value={formState.maxRate}
+              onChange={handleChange}
+              placeholder="6.25"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+        </fieldset>
+
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="loanPrograms">
+            Loan programmes offered (comma separated)
+            <input
+              id="loanPrograms"
+              value={formState.loanPrograms}
+              onChange={handleChange}
+              placeholder="Jumbo, DSCR, Bank statement"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="minCreditScore">
+            Minimum credit score accepted
+            <input
+              id="minCreditScore"
+              type="number"
+              min={300}
+              max={850}
+              value={formState.minCreditScore}
+              onChange={handleChange}
+              placeholder="680"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+        </fieldset>
+
+        <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="maxLoanToValue">
+          Maximum loan-to-value (%)
+          <input
+            id="maxLoanToValue"
+            type="number"
+            min={10}
+            max={100}
+            value={formState.maxLoanToValue}
+            onChange={handleChange}
+            placeholder="90"
+            className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+          />
+        </label>
+
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="website">
           Website
           <input
@@ -246,6 +379,18 @@ export function BrokerProfileForm() {
             value={formState.website}
             onChange={handleChange}
             placeholder="https://your-brokerage.com"
+            className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="notes">
+          Additional notes
+          <textarea
+            id="notes"
+            rows={4}
+            value={formState.notes}
+            onChange={handleChange}
+            placeholder="Closing speed, documentation requirements, special programmes, etc."
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
@@ -281,7 +426,13 @@ export function BrokerProfileForm() {
                 bio: profile.bio ?? "",
                 licenseStates: (profile.licenseStates ?? []).join(", "),
                 yearsExperience: profile.yearsExperience?.toString() ?? "",
-                website: profile.website ?? ""
+                website: profile.website ?? "",
+                minRate: profile.minRate?.toString() ?? "",
+                maxRate: profile.maxRate?.toString() ?? "",
+                loanPrograms: (profile.loanPrograms ?? []).join(", "),
+                minCreditScore: profile.minCreditScore?.toString() ?? "",
+                maxLoanToValue: profile.maxLoanToValue?.toString() ?? "",
+                notes: profile.notes ?? ""
               });
               setStatus(null);
               setError(null);
