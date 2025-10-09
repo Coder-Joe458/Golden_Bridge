@@ -52,7 +52,18 @@ export async function POST(request: Request) {
     }
   });
 
-  const scored = brokers
+  const filteredBrokers =
+    state
+      ? brokers.filter((broker) => {
+          const normalizedStates = (broker.licenseStates ?? []).map((s) => normalizeState(s));
+          if (!normalizedStates.length) return false;
+          return normalizedStates.includes(state);
+        })
+      : brokers;
+
+  const pool = filteredBrokers.length ? filteredBrokers : brokers;
+
+  const scored = pool
     .map((broker) => {
       if (creditScore && broker.minCreditScore && creditScore < broker.minCreditScore) {
         return null;
