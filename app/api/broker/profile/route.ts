@@ -98,7 +98,15 @@ const brokerProfileSchema = z.object({
     .max(2000, "Notes must be under 2000 characters")
     .optional()
     .nullable()
-    .transform((val) => (val && val.length ? val : null))
+    .transform((val) => (val && val.length ? val : null)),
+  closingSpeedDays: z
+    .number({ invalid_type_error: "Closing speed must be a number" })
+    .int("Closing speed must be an integer")
+    .min(1, "Closing speed must be at least 1 day")
+    .max(120, "Closing speed should be within 120 days")
+    .optional()
+    .nullable()
+    .transform((val) => (typeof val === "number" ? val : null))
 });
 
 export async function GET() {
@@ -172,7 +180,8 @@ export async function PUT(request: Request) {
       loanPrograms: data.loanPrograms ?? [],
       minCreditScore: data.minCreditScore,
       maxLoanToValue: data.maxLoanToValue,
-      notes: data.notes
+      notes: data.notes,
+      closingSpeedDays: data.closingSpeedDays
     },
     create: {
       userId: session.user.id,
@@ -187,7 +196,8 @@ export async function PUT(request: Request) {
       loanPrograms: data.loanPrograms ?? [],
       minCreditScore: data.minCreditScore,
       maxLoanToValue: data.maxLoanToValue,
-      notes: data.notes
+      notes: data.notes,
+      closingSpeedDays: data.closingSpeedDays
     }
   });
 

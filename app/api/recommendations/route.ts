@@ -61,8 +61,108 @@ export async function POST(request: Request) {
         })
       : brokers;
 
-  const pool = filteredBrokers.length ? filteredBrokers : brokers;
+  const pool = (filteredBrokers.length ? filteredBrokers : brokers).filter((broker) => {
+    if (creditScore && broker.minCreditScore && creditScore < broker.minCreditScore) {
+      return false;
+    }
+    return true;
+  });
 
+  const basePool = pool.length ? pool : filteredBrokers.length ? filteredBrokers : brokers;
+
+  const mapBroker = (broker: typeof basePool[number]) => {
+    const normalizedStates = (broker.licenseStates ?? []).map((s) => normalizeState(s) ?? s.toUpperCase());
+    return {
+      id: broker.id,
+      company: broker.company,
+      headline: broker.headline,
+      notes: broker.notes,
+      licenseStates: normalizedStates,
+      minRate: broker.minRate ? Number(broker.minRate) : null,
+      maxRate: broker.maxRate ? Number(broker.maxRate) : null,
+      loanPrograms: broker.loanPrograms ?? [],
+      minCreditScore: broker.minCreditScore,
+      maxLoanToValue: broker.maxLoanToValue,
+      yearsExperience: broker.yearsExperience,
+      website: broker.website,
+      lenderName: broker.company || broker.user?.name || "Golden Bridge Broker",
+      contactEmail: broker.user?.email ?? null,
+      closingSpeedDays: broker.closingSpeedDays ?? null
+    };
+  };
+
+  const used = new Set<string>();
+  const picks: Array<{ category: "lowestRate" | "highestLtv" | "fastestClosing" | "additional"; broker: typeof basePool[number] }> = [];
+
+  const select = (
+    category: "lowestRate" | "highestLtv" | "fastestClosing" | "additional",
+    sorter: (a: typeof basePool[number], b: typeof basePool[number]) => number,
+    predicate?: (broker: typeof basePool[number]) => boolean
+  ) => {
+    const sorted = [...basePool].sort(sorter);
+    for (const broker of sorted) {
+      if (used.has(broker.id)) continue;
+      if (predicate && !predicate(broker)) continue;
+      picks.push({ category, broker });
+      used.add(broker.id);
+      break;
+    }
+  };
+
+  const rateSorter = (a: typeof basePool[number], b: typeof basePool[number]) => {
+    const aRate = a.minRate ? Number(a.minRate) : a.maxRate ? Number(a.maxRate) : Number.POSITIVE_INFINITY;
+    const bRate = b.minRate ? Number(b.minRate) : b.maxRate ? Number(b.maxRate) : Number.POSITIVE_INFINITY;
+    return aRate - bRate;
+  };
+
+  const ltvSorter = (a: typeof basePool[number], b: typeof basePool[number]) => {
+    const aLtv = a.maxLoanToValue ?? -Infinity;
+    const bLtv = b.maxLoanToValue ?? -Infinity;
+    return bLtv - aLtv;
+  };
+
+  const closingScore = (broker: typeof basePool[number]) => {
+    if (broker.closingSpeedDays) return broker.closingSpeedDays;
+    const notes = broker.notes?.toLowerCase() ?? "";
+    if (/fast|quick|expedited|12\s*day|close/.test(notes)) return 45;
+    return 120;
+  };
+
+  const closingSorter = (a: typeof basePool[number], b: typeof basePool[number]) => closingScore(a) - closingScore(b);
+
+  select("lowestRate", rateSorter, (broker) => broker.minRate !== null || broker.maxRate !== null);
+  select("highestLtv", ltvSorter, (broker) => broker.maxLoanToValue !== null);
+  select("fastestClosing", closingSorter, () => true);
+
+  if (picks.length < 3) {
+    const fillerSorter = (a: typeof basePool[number], b: typeof basePool[number]) => {
+      const aRate = a.minRate ? Number(a.minRate) : Number.POSITIVE_INFINITY;
+      const bRate = b.minRate ? Number(b.minRate) : Number.POSITIVE_INFINITY;
+      if (aRate === bRate) {
+        return (b.maxLoanToValue ?? 0) - (a.maxLoanToValue ?? 0);
+      }
+      return aRate - bRate;
+    };
+    while (picks.length < 3) {
+      const sorted = [...basePool].sort(fillerSorter);
+      let added = false;
+      for (const broker of sorted) {
+        if (used.has(broker.id)) continue;
+        picks.push({ category: "additional", broker });
+        used.add(broker.id);
+        added = true;
+        break;
+      }
+      if (!added) break;
+    }
+  }
+
+  const recommendations = picks.map(({ category, broker }) => ({ category, ...mapBroker(broker) }));
+
+  return NextResponse.json({
+    recommendations,
+    total: basePool.length
+  });
   const scored = pool
     .map((broker) => {
       if (creditScore && broker.minCreditScore && creditScore < broker.minCreditScore) {

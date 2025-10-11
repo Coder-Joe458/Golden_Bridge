@@ -9,7 +9,7 @@ import {
   getOrCreateActiveSession,
   updateSessionContext
 } from "@/lib/chat-service";
-import { buildFallbackResponse, buildSystemPrompt, Summary } from "@/lib/chat/logic";
+import { buildFallbackResponse, buildSystemPrompt, getChatQuestions, Locale, Summary } from "@/lib/chat/logic";
 import { ChatMessageSender } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -32,7 +32,8 @@ const requestSchema = z.object({
   message: z.string().min(1),
   summary: summarySchema,
   pointer: z.number().int().min(0).optional().default(0),
-  shouldRecap: z.boolean().optional().default(false)
+  shouldRecap: z.boolean().optional().default(false),
+  locale: z.enum(["en", "zh"]).optional().default("en")
 });
 
 type OpenAIRole = "system" | "user" | "assistant";
@@ -68,8 +69,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "OpenAI API key is not configured." }, { status: 500 });
   }
 
-  const { sessionId, message, summary, pointer, shouldRecap } = parsed.data;
+  const { sessionId, message, summary, pointer, shouldRecap, locale } = parsed.data as {
+    sessionId?: string;
+    message: string;
+    summary: Summary;
+    pointer: number;
+    shouldRecap: boolean;
+    locale: Locale;
+  };
   const summaryContext = summary as Summary;
+  const questions = getChatQuestions(locale);
 
   const chatSession = await getOrCreateActiveSession(session.user.id, sessionId);
 
@@ -78,7 +87,10 @@ export async function POST(request: Request) {
   const recentMessages = await fetchRecentMessages(chatSession.id, 12);
 
   const openAiMessages = [
-    { role: "system" as OpenAIRole, content: buildSystemPrompt(summaryContext, pointer, shouldRecap) },
+    {
+      role: "system" as OpenAIRole,
+      content: buildSystemPrompt(summaryContext, pointer, shouldRecap, locale, questions)
+    },
     ...recentMessages.map((msg) => ({
       role: mapSenderToRole(msg.sender),
       content: msg.content
@@ -102,7 +114,7 @@ export async function POST(request: Request) {
   }
 
   if (!aiResponse) {
-    aiResponse = buildFallbackResponse(summaryContext, pointer, shouldRecap);
+    aiResponse = buildFallbackResponse(summaryContext, pointer, shouldRecap, locale, questions);
   }
 
   await appendMessage(chatSession.id, ChatMessageSender.AI, aiResponse);

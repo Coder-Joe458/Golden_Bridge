@@ -16,6 +16,7 @@ export type BrokerProfile = {
   minCreditScore: number | null;
   maxLoanToValue: number | null;
   notes: string | null;
+  closingSpeedDays: number | null;
 };
 
 const defaultProfile: BrokerProfile = {
@@ -30,7 +31,8 @@ const defaultProfile: BrokerProfile = {
   loanPrograms: [],
   minCreditScore: null,
   maxLoanToValue: null,
-  notes: null
+  notes: null,
+  closingSpeedDays: null
 };
 
 export function BrokerProfileForm() {
@@ -48,7 +50,8 @@ export function BrokerProfileForm() {
     loanPrograms: "",
     minCreditScore: "",
     maxLoanToValue: "",
-    notes: ""
+    notes: "",
+    closingSpeedDays: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,7 +83,8 @@ export function BrokerProfileForm() {
           loanPrograms: (data.profile.loanPrograms ?? []).join(", "),
           minCreditScore: data.profile.minCreditScore?.toString() ?? "",
           maxLoanToValue: data.profile.maxLoanToValue?.toString() ?? "",
-          notes: data.profile.notes ?? ""
+          notes: data.profile.notes ?? "",
+          closingSpeedDays: data.profile.closingSpeedDays?.toString() ?? ""
         });
       } catch (err) {
         console.error(err);
@@ -123,7 +127,8 @@ export function BrokerProfileForm() {
       JSON.stringify(normalizedPrograms) !== JSON.stringify(originalPrograms) ||
       (profile.minCreditScore?.toString() ?? "") !== formState.minCreditScore.trim() ||
       (profile.maxLoanToValue?.toString() ?? "") !== formState.maxLoanToValue.trim() ||
-      (profile.notes ?? "") !== formState.notes.trim()
+      (profile.notes ?? "") !== formState.notes.trim() ||
+      (profile.closingSpeedDays?.toString() ?? "") !== formState.closingSpeedDays.trim()
     );
   }, [formState, profile]);
 
@@ -173,7 +178,8 @@ export function BrokerProfileForm() {
       loanPrograms: loanPrograms.length ? loanPrograms : undefined,
       minCreditScore: toOptionalNumber(formState.minCreditScore),
       maxLoanToValue: toOptionalNumber(formState.maxLoanToValue),
-      notes: toOptionalString(formState.notes)
+      notes: toOptionalString(formState.notes),
+      closingSpeedDays: toOptionalNumber(formState.closingSpeedDays)
     };
 
     try {
@@ -203,7 +209,8 @@ export function BrokerProfileForm() {
         loanPrograms: (data.profile.loanPrograms ?? []).join(", "),
         minCreditScore: data.profile.minCreditScore?.toString() ?? "",
         maxLoanToValue: data.profile.maxLoanToValue?.toString() ?? "",
-        notes: data.profile.notes ?? ""
+        notes: data.profile.notes ?? "",
+        closingSpeedDays: data.profile.closingSpeedDays?.toString() ?? ""
       });
     } catch (err) {
       console.error(err);
@@ -372,6 +379,20 @@ export function BrokerProfileForm() {
           />
         </label>
 
+        <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="closingSpeedDays">
+          Average closing speed (days)
+          <input
+            id="closingSpeedDays"
+            type="number"
+            min={1}
+            max={120}
+            value={formState.closingSpeedDays}
+            onChange={handleChange}
+            placeholder="14"
+            className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+          />
+        </label>
+
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="website">
           Website
           <input
@@ -433,7 +454,8 @@ export function BrokerProfileForm() {
                 loanPrograms: (profile.loanPrograms ?? []).join(", "),
                 minCreditScore: profile.minCreditScore?.toString() ?? "",
                 maxLoanToValue: profile.maxLoanToValue?.toString() ?? "",
-                notes: profile.notes ?? ""
+                notes: profile.notes ?? "",
+                closingSpeedDays: profile.closingSpeedDays?.toString() ?? ""
               });
               setStatus(null);
               setError(null);
