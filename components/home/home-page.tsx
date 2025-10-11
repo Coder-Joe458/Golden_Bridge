@@ -95,7 +95,65 @@ const createIntroMessages = (locale: Locale): Message[] => {
   ];
 };
 
+function translateText(text: string): string {
+  const dictionary: Record<string, string> = {
+    "Tech professional and startup-friendly jumbo lending across Northern California": "专注北加州科技及创业客户的大额贷款团队",
+    "SoCal purchase and refinance specialist with investor solutions": "南加州购房与再融资专家，兼顾投资需求",
+    "Specialist in coastal condos and vacation homes": "擅长海岸公寓与度假房贷项目",
+    "Focus on RSU and stock-comp borrowers. Rapid underwriting lanes for purchase contingencies.": "聚焦 RSU/股票薪酬客户，购房审批快速通道。",
+    "Focus on RSU and stock-comp borrowers. Rapid underwriting lanes for purchase contingencies": "聚焦 RSU/股票薪酬客户，购房审批快速通道。",
+    "Dedicated jumbo desk. Expedited underwriting for RSU-heavy borrowers. Low-doc options available.": "设有大额贷款专席，RSU 客户审批提速，并提供低文件方案。",
+    "Fast closing team focused on vacation rentals; streamlined documentation for DSCR products.": "度假短租团队放款迅速，针对 DSCR 产品提供简化资料流程。",
+    "Handles complex income structures, SBA transitions, and 7-day document prep. Bilingual support (EN/ES).": "处理复杂收入结构、SBA 转贷及 7 天材料准备，提供英/西双语服务。",
+    "Handles complex income structures, SBA transitions, and 7-day document prep. Bilingual support (EN/ES)": "处理复杂收入结构、SBA 转贷及 7 天材料准备，提供英/西双语服务。"
+  };
+
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return text;
+
+  return dictionary[normalized] ?? dictionary[normalized.replace(/\.+$/, "")] ?? text;
+}
+
+function translateLoanProgram(program: string): string {
+  const normalized = program.replace(/\s+/g, " ").trim();
+  if (!normalized) return program;
+
+  const dictionary: Record<string, string> = {
+    "jumbo": "大额贷款",
+    "arm hybrid": "混合 ARM 方案",
+    "arm": "可调利率贷款 ARM",
+    "bridge": "过桥贷款",
+    "conforming": "合规贷款",
+    "investor dscr": "投资型 DSCR",
+    "dscr": "DSCR 现金流贷款",
+    "bank statement": "银行流水贷款",
+    "fha/va": "FHA/VA 政府贷款",
+    "va/fha": "FHA/VA 政府贷款",
+    "vacation rental": "度假/短租贷款",
+    "rental": "投资出租贷款",
+    "construction": "建房贷款"
+  };
+
+  const direct = dictionary[normalized.toLowerCase()];
+  if (direct) return direct;
+
+  if (/jumbo/i.test(normalized)) return "大额贷款";
+  if (/bridge/i.test(normalized)) return "过桥贷款";
+  if (/arm/i.test(normalized) && /hybrid/i.test(normalized)) return "混合 ARM 方案";
+  if (/arm/i.test(normalized)) return "可调利率贷款 ARM";
+  if (/conform/i.test(normalized)) return "合规贷款";
+  if (/bank\s*statement/i.test(normalized)) return "银行流水贷款";
+  if (/dscr/i.test(normalized) && /investor/i.test(normalized)) return "投资型 DSCR";
+  if (/dscr/i.test(normalized)) return "DSCR 现金流贷款";
+  if (/(fha|va)/i.test(normalized)) return "FHA/VA 政府贷款";
+  if (/vacation/i.test(normalized) || /rental/i.test(normalized)) return "度假/短租贷款";
+  if (/construction/i.test(normalized)) return "建房贷款";
+
+  return normalized;
+}
+
 export function HomePage(): JSX.Element {
+
   const { data: session } = useSession();
   const [locale, setLocale] = useState<Locale>("en");
   const questions = useMemo(() => getChatQuestions(locale), [locale]);
@@ -820,6 +878,11 @@ export function HomePage(): JSX.Element {
                 }
                 return t("Rate info on request", "利率信息可咨询");
               })();
+              const noteText = (() => {
+                if (!broker.notes) return null;
+                const base = locale === "zh" ? translateText(broker.notes) : broker.notes;
+                return base.length > 220 ? `${base.slice(0, 220)}…` : base;
+              })();
 
               return (
                 <article
@@ -847,8 +910,14 @@ export function HomePage(): JSX.Element {
                           return t("Alternative match", "备选推荐");
                       }
                     })()}</span>
-                    {broker.headline && <p className="mt-1 text-sm text-slate-300">{broker.headline}</p>}
-                  </div>
+                  {broker.headline && (
+                    <p className="mt-1 text-sm text-slate-300">
+                      {locale === "zh"
+                        ? translateText(broker.headline)
+                        : broker.headline}
+                    </p>
+                  )}
+                </div>
                   <ul className="flex flex-wrap gap-2 text-xs text-slate-300">
                     <li className="rounded-full bg-white/5 px-3 py-1">{t("Rate:", "利率：")} {rateLabel}</li>
                     {broker.maxLoanToValue !== null && (
@@ -865,16 +934,12 @@ export function HomePage(): JSX.Element {
                     <div className="flex flex-wrap gap-2 text-xs text-slate-300">
                       {broker.loanPrograms.map((program) => (
                         <span key={program} className="rounded-full border border-white/10 px-3 py-1">
-                          {program}
+                          {locale === "zh" ? translateLoanProgram(program) : program}
                         </span>
                       ))}
                     </div>
                   )}
-                  {broker.notes && (
-                    <p className="text-xs text-slate-400">
-                      {broker.notes.length > 220 ? `${broker.notes.slice(0, 220)}…` : broker.notes}
-                    </p>
-                  )}
+                  {noteText && <p className="text-xs text-slate-400">{noteText}</p>}
                   {broker.website && (
                     <a
                       href={broker.website}
