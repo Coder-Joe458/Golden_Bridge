@@ -5,6 +5,7 @@ const stateMap: Record<string, string> = {
   "los angeles": "CA",
   calif: "CA",
   "california state": "CA",
+  "north california": "CA",
   "加州": "CA",
   "洛杉矶": "CA",
   "旧金山": "CA",
@@ -65,27 +66,39 @@ const stateMap: Record<string, string> = {
   "芝加哥": "IL"
 };
 
+const keyPriority = Object.keys(stateMap).sort((a, b) => b.length - a.length);
+
 export function normalizeState(input?: string | null): string | null {
   if (!input) return null;
-  const cleaned = input.toLowerCase().replace(/[^a-z\u4e00-\u9fa5\s]/g, "").trim();
+  const cleaned = input.toLowerCase().replace(/[^a-z\u4e00-\u9fa5]/g, "").trim();
   if (!cleaned.length) return null;
-  return stateMap[cleaned] ?? (cleaned.length === 2 ? cleaned.toUpperCase() : null);
+
+  if (/^[a-z]{2}$/.test(cleaned)) {
+    return cleaned.toUpperCase();
+  }
+
+  if (stateMap[cleaned]) {
+    return stateMap[cleaned];
+  }
+
+  for (const key of keyPriority) {
+    if (cleaned.includes(key)) {
+      return stateMap[key];
+    }
+  }
+
+  return null;
 }
 
 export function extractStateFromLocation(location?: string | null): string | null {
   if (!location) return null;
-  const normalizedLocation = location
-    .replace(/[州省市县]/g, (match) => (match === "州" ? match : " "))
-    .replace(/[、，]/g, " ");
-  const parts = normalizedLocation
-    .split(/\s+/)
-    .map((part) => part.replace(/州$/, "").trim())
-    .filter(Boolean);
+  const cleaned = location.replace(/[，,]/g, " ");
+  const parts = cleaned.split(/\s+/).filter(Boolean);
   for (const part of parts.reverse()) {
     const normalized = normalizeState(part);
     if (normalized) {
       return normalized;
     }
   }
-  return normalizeState(location);
+  return normalizeState(cleaned);
 }
