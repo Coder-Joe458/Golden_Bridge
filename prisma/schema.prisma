@@ -25,6 +25,8 @@ model User {
   receivedReferrals      ReferralInvite[] @relation("ReferralRecipient")
   brokerInterestsSent    BrokerInterest[] @relation("BrokerInterestBroker")
   brokerInterestsReceived BrokerInterest[] @relation("BrokerInterestBorrower")
+  borrowerConversations  BrokerConversation[] @relation("ConversationBorrower")
+  brokerConversations    BrokerConversation[] @relation("ConversationBroker")
 }
 
 enum UserRole {
@@ -157,6 +159,39 @@ model BrokerInterest {
   @@index([borrowerId, createdAt])
 }
 
+model BrokerConversation {
+  id            String                   @id @default(cuid())
+  borrowerId    String
+  brokerId      String
+  status        BrokerConversationStatus @default(ACTIVE)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  lastMessageAt DateTime                 @default(now())
+
+  borrower User @relation("ConversationBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+  broker   User @relation("ConversationBroker", fields: [brokerId], references: [id], onDelete: Cascade)
+  messages BrokerMessage[]
+
+  @@unique([borrowerId, brokerId])
+  @@index([borrowerId, lastMessageAt])
+  @@index([brokerId, lastMessageAt])
+}
+
+model BrokerMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  senderId       String
+  senderType     BrokerMessageSender
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime             @default(now())
+
+  conversation BrokerConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User               @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
 enum ChatSessionStatus {
   ACTIVE
   ARCHIVED
@@ -181,4 +216,15 @@ enum BrokerInterestStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+enum BrokerConversationStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum BrokerMessageSender {
+  BORROWER
+  BROKER
+  SYSTEM
 }

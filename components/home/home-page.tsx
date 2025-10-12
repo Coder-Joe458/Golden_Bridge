@@ -40,6 +40,21 @@ type RecommendedBroker = {
   category: "lowestRate" | "highestLtv" | "fastestClosing" | "additional";
 };
 
+type BrokerChatMessage = {
+  id: string;
+  content: string;
+  senderType: "BORROWER" | "BROKER" | "SYSTEM";
+  createdAt: string;
+};
+
+type ActiveBrokerChat = {
+  conversationId: string;
+  brokerName: string;
+  brokerCompany?: string | null;
+  messages: BrokerChatMessage[];
+  viewerRole: "BORROWER" | "BROKER";
+};
+
 type ProfileFormState = {
   name: string;
   city: string;
@@ -179,10 +194,15 @@ export function HomePage(): JSX.Element {
   const [recommendations, setRecommendations] = useState<RecommendedBroker[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState<boolean>(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [activeBrokerChat, setActiveBrokerChat] = useState<ActiveBrokerChat | null>(null);
+  const [brokerChatLoading, setBrokerChatLoading] = useState<boolean>(false);
+  const [brokerChatInput, setBrokerChatInput] = useState<string>("");
+  const [brokerChatError, setBrokerChatError] = useState<string | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const brokerChatContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setMessages(createIntroMessages(locale));
@@ -214,6 +234,11 @@ export function HomePage(): JSX.Element {
     if (!chatContainerRef.current) return;
     chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
   }, [messages]);
+
+  useEffect(() => {
+    if (!brokerChatContainerRef.current) return;
+    brokerChatContainerRef.current.scrollTop = brokerChatContainerRef.current.scrollHeight;
+  }, [activeBrokerChat?.messages]);
 
   useEffect(() => {
     const ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -559,6 +584,163 @@ export function HomePage(): JSX.Element {
         : t("Share the link with your colleague to start their journey.", "复制链接发送给同事或朋友即可使用。")
     );
     event.currentTarget.reset();
+  };
+
+  const handleStartBrokerChat = async (broker: RecommendedBroker) => {
+    if (!session?.user?.id) {
+      setBrokerChatError(t("Please sign in to chat with lenders.", "请先登录才能与贷款方聊天。"));
+      return;
+    }
+
+    setBrokerChatLoading(true);
+    setBrokerChatError(null);
+
+    try {
+      const response = await fetch("/api/broker/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brokerProfileId: broker.id })
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            conversation?: {
+              id: string;
+              broker?: { brokerProfile?: { company?: string | null } | null };
+            };
+            messages?: BrokerChatMessage[];
+            viewerRole?: ActiveBrokerChat["viewerRole"];
+          }
+        | null;
+
+      if (!response.ok || !payload?.conversation) {
+        throw new Error(payload?.error ?? "Failed to start conversation");
+      }
+
+      const mappedMessages = (payload.messages ?? []).map((message) => ({
+        id: message.id,
+        content: message.content,
+        senderType: message.senderType,
+        createdAt: message.createdAt
+      }));
+
+      setActiveBrokerChat({
+        conversationId: payload.conversation.id,
+        brokerName: broker.company ?? broker.lenderName,
+        brokerCompany: payload.conversation.broker?.brokerProfile?.company ?? broker.company ?? broker.lenderName,
+        messages: mappedMessages,
+        viewerRole: payload.viewerRole ?? "BORROWER"
+      });
+      setBrokerChatInput("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start conversation";
+      setBrokerChatError(
+        locale === "zh" ? `无法开始对话：${message}` : `Unable to start chat: ${message}`
+      );
+    } finally {
+      setBrokerChatLoading(false);
+    }
+  };
+
+  const handleRefreshBrokerChat = async () => {
+    if (!activeBrokerChat) return;
+
+    setBrokerChatLoading(true);
+    setBrokerChatError(null);
+
+    try {
+      const response = await fetch(`/api/broker/conversations/${activeBrokerChat.conversationId}/messages`);
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            messages?: BrokerChatMessage[];
+            viewerRole?: ActiveBrokerChat["viewerRole"];
+          }
+        | null;
+
+      if (!response.ok || !payload) {
+        throw new Error(payload?.error ?? "Failed to load messages");
+      }
+
+      const mappedMessages = (payload.messages ?? []).map((message) => ({
+        id: message.id,
+        content: message.content,
+        senderType: message.senderType,
+        createdAt: message.createdAt
+      }));
+
+      setActiveBrokerChat((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: mappedMessages,
+              viewerRole: payload.viewerRole ?? prev.viewerRole
+            }
+          : prev
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load messages";
+      setBrokerChatError(locale === "zh" ? `刷新对话失败：${message}` : `Failed to refresh chat: ${message}`);
+    } finally {
+      setBrokerChatLoading(false);
+    }
+  };
+
+  const handleSendBrokerMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeBrokerChat) return;
+    const trimmed = brokerChatInput.trim();
+    if (!trimmed) return;
+
+    setBrokerChatLoading(true);
+    setBrokerChatError(null);
+    setBrokerChatInput("");
+
+    try {
+      const response = await fetch(
+        `/api/broker/conversations/${activeBrokerChat.conversationId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: trimmed })
+        }
+      );
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            message?: BrokerChatMessage;
+          }
+        | null;
+
+      if (!response.ok || !payload?.message) {
+        throw new Error(payload?.error ?? "Failed to send message");
+      }
+
+      setActiveBrokerChat((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [
+                ...prev.messages,
+                {
+                  id: payload.message.id,
+                  content: payload.message.content,
+                  senderType: payload.message.senderType,
+                  createdAt: payload.message.createdAt
+                }
+              ]
+            }
+          : prev
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to send message";
+      setBrokerChatError(locale === "zh" ? `发送失败：${message}` : `Message failed: ${message}`);
+      setBrokerChatInput(trimmed);
+    } finally {
+      setBrokerChatLoading(false);
+    }
   };
 
   return (
@@ -950,20 +1132,30 @@ export function HomePage(): JSX.Element {
                       {t("Visit broker site", "查看经纪人官网")}
                     </a>
                   )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      displayStatus(
-                        setMatchStatus,
-                        locale === "zh"
-                          ? `${broker.lenderName} 已收到通知，平台将协助后续对接。`
-                          : `${broker.lenderName} has been notified. The platform will coordinate follow-up.`
-                      )
-                    }
-                    className="mt-auto rounded-full border border-brand-primary/60 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
-                  >
-                    {t("Notify the platform broker", "通知平台经纪人")}
-                  </button>
+                  <div className="mt-auto flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleStartBrokerChat(broker)}
+                      disabled={brokerChatLoading}
+                      className="rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {t("Chat with this lender", "与贷款方聊天")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        displayStatus(
+                          setMatchStatus,
+                          locale === "zh"
+                            ? `${broker.lenderName} 已收到通知，平台将协助后续对接。`
+                            : `${broker.lenderName} has been notified. The platform will coordinate follow-up.`
+                        )
+                      }
+                      className="rounded-full border border-brand-primary/60 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
+                    >
+                      {t("Notify the platform broker", "通知平台经纪人")}
+                    </button>
+                  </div>
                 </article>
               );
             })}
@@ -1169,6 +1361,114 @@ export function HomePage(): JSX.Element {
           </div>
         </div>
       </footer>
+      {activeBrokerChat && (
+        <div className="fixed bottom-6 right-6 z-40 w-full max-w-md rounded-3xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/30 backdrop-blur-lg">
+          <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-white">{activeBrokerChat.brokerName}</p>
+              {activeBrokerChat.brokerCompany && (
+                <p className="text-xs text-slate-400">{activeBrokerChat.brokerCompany}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRefreshBrokerChat}
+                disabled={brokerChatLoading}
+                className="text-xs text-slate-400 transition hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("Refresh", "刷新")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveBrokerChat(null);
+                  setBrokerChatError(null);
+                }}
+                className="text-xs text-slate-400 transition hover:text-brand-primary"
+              >
+                {t("Close", "关闭")}
+              </button>
+            </div>
+          </div>
+          <div ref={brokerChatContainerRef} className="max-h-72 space-y-3 overflow-y-auto px-4 py-3 text-sm">
+            {activeBrokerChat.messages.length === 0 && (
+              <p className="text-xs text-slate-400">{t("No messages yet. Say hello!", "还没有消息，先打个招呼吧！")}</p>
+            )}
+            {activeBrokerChat.messages.map((message) => {
+              if (message.senderType === "SYSTEM") {
+                const systemDate = new Date(message.createdAt);
+                const systemLabel = Number.isNaN(systemDate.getTime())
+                  ? ""
+                  : new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
+                      hour: "numeric",
+                      minute: "2-digit"
+                    }).format(systemDate);
+                return (
+                  <div key={message.id} className="flex justify-center">
+                    <div className="max-w-[80%] rounded-full bg-white/10 px-3 py-1 text-[11px] text-slate-300">
+                      <span>{message.content}</span>
+                      {systemLabel && <span className="ml-2 text-[10px] uppercase tracking-widest text-slate-500">{systemLabel}</span>}
+                    </div>
+                  </div>
+                );
+              }
+
+              const isSelf =
+                activeBrokerChat.viewerRole === "BORROWER"
+                  ? message.senderType === "BORROWER"
+                  : message.senderType === "BROKER";
+              const messageDate = new Date(message.createdAt);
+              const timeLabel = Number.isNaN(messageDate.getTime())
+                ? ""
+                : new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
+                    hour: "numeric",
+                    minute: "2-digit"
+                  }).format(messageDate);
+
+              return (
+                <div key={message.id} className={`flex ${isSelf ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                      isSelf ? "bg-brand-primary text-brand-dark" : "bg-white/10 text-slate-100"
+                    }`}
+                  >
+                    <p>{message.content}</p>
+                    {timeLabel && (
+                      <span
+                        className={`mt-1 block text-[10px] uppercase tracking-widest ${
+                          isSelf ? "text-brand-dark/70" : "text-slate-400"
+                        }`}
+                      >
+                        {timeLabel}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {brokerChatError && <p className="px-4 text-xs text-red-300">{brokerChatError}</p>}
+          <form onSubmit={handleSendBrokerMessage} className="border-t border-white/10 px-4 py-3">
+            <div className="flex items-end gap-2">
+              <input
+                type="text"
+                value={brokerChatInput}
+                onChange={(event) => setBrokerChatInput(event.target.value)}
+                placeholder={t("Write a message…", "输入消息…")}
+                className="flex-1 rounded-full border border-white/10 bg-slate-900/80 px-4 py-2 text-xs text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-1 focus:ring-brand-primary/30"
+              />
+              <button
+                type="submit"
+                disabled={brokerChatLoading || !brokerChatInput.trim()}
+                className="rounded-full bg-brand-primary px-4 py-2 text-xs font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("Send", "发送")}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
