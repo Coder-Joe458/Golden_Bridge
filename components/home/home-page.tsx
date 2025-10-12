@@ -184,7 +184,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const [voiceStatus, setVoiceStatus] = useState<string>(t("Ready for voice capture...", "语音输入待命…"));
   const [profile, setProfile] = useState<ProfileFormState>(initialProfile);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
-  const [agentStatus, setAgentStatus] = useState<string | null>(null);
   const [matchStatus, setMatchStatus] = useState<string | null>(null);
   const [referralLink, setReferralLink] = useState<string>("");
   const [referralStatus, setReferralStatus] = useState<string | null>(null);
@@ -548,15 +547,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
 
   const handleRefreshRecommendations = () => {
     setRefreshKey((prev) => prev + 1);
-  };
-
-  const handleAgentSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    displayStatus(
-      setAgentStatus,
-      t("Thanks for joining the Golden Bridge broker network. We'll notify you when we have a qualified borrower.", "感谢加入金桥经纪人网络，有匹配客户时会第一时间通知您。")
-    );
-    event.currentTarget.reset();
   };
 
   const handleReferralSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1210,85 +1200,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
-
-        <section id="broker-hub" className="space-y-10">
-          <header className="space-y-4">
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">{t("Broker Studio", "经纪人工作台")}</h2>
-            <p className="max-w-3xl text-lg text-slate-300">
-              {t(
-                "Showcase your lending edge, upload marketing assets, and receive deal-ready introductions with privacy safeguards baked in.",
-                "展示团队优势、上传宣传材料，并在平台保护下接收匹配成功的借款人线索。"
-              )}
-            </p>
-          </header>
-
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-slate-900/80 p-8 shadow-xl shadow-black/20">
-              <h3 className="text-2xl font-semibold text-white">{t("Brand Showcase", "品牌展示位")}</h3>
-              <p className="text-sm text-slate-300">
-                {t(
-                  "Upload product spotlights, niche vertical wins, and testimonials. Golden Bridge packages your story directly inside borrower journeys.",
-                  "上传特色产品、成功案例与口碑，金桥会将这些亮点融入借款人旅程。"
-                )}
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  displayStatus(
-                    setAgentStatus,
-                    t(
-                      "Upload portal unlocked in your broker dashboard. Our team will reach out to help tailor the reveal.",
-                      "已为您开启上传入口，团队将协助完善展示内容。"
-                    )
-                  )
-                }
-                className="rounded-full bg-brand-primary px-6 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5"
-              >
-                {t("Submit showcase assets", "提交宣传资料")}
-              </button>
-              {agentStatus && <p className="text-xs text-emerald-300">{agentStatus}</p>}
-            </div>
-
-            <form
-              onSubmit={handleAgentSubmit}
-              className="flex flex-col gap-5 rounded-3xl border border-white/5 bg-slate-900/80 p-8 shadow-xl shadow-black/20"
-            >
-              <div>
-                <h3 className="text-2xl font-semibold text-white">{t("Ready-to-Engage Alerts", "意向提醒")}</h3>
-                <p className="text-sm text-slate-300">
-                  {t("Enter your coverage zones and we'll ping you the moment a fit borrower confirms interest.", "填写执业范围后，一旦有匹配客户确认兴趣，会即时通知您。")}
-                </p>
-              </div>
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                {t("Work email", "工作邮箱")}
-                <input
-                  required
-                  name="agent-email"
-                  type="email"
-                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
-                  placeholder="you@brokerage.com"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-300">
-                {t("Licensed states", "执业州")}
-                <input
-                  required
-                  name="agent-state"
-                  type="text"
-                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
-                  placeholder="CA, NY, TX"
-                />
-              </label>
-              <button
-                type="submit"
-                className="rounded-full border border-brand-accent/60 px-6 py-2 text-sm font-semibold text-brand-accent transition hover:bg-brand-accent/10"
-              >
-                {t("Join the broker network", "加入经纪人网络")}
-              </button>
-              {agentStatus && <p className="text-xs text-emerald-300">{agentStatus}</p>}
-            </form>
           </div>
         </section>
 
