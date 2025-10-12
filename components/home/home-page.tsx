@@ -714,7 +714,9 @@ export function HomePage(): JSX.Element {
           }
         | null;
 
-      if (!response.ok || !payload?.message) {
+      const newMessage = payload?.message;
+
+      if (!response.ok || !newMessage) {
         throw new Error(payload?.error ?? "Failed to send message");
       }
 
@@ -725,10 +727,10 @@ export function HomePage(): JSX.Element {
               messages: [
                 ...prev.messages,
                 {
-                  id: payload.message.id,
-                  content: payload.message.content,
-                  senderType: payload.message.senderType,
-                  createdAt: payload.message.createdAt
+                  id: newMessage.id,
+                  content: newMessage.content,
+                  senderType: newMessage.senderType,
+                  createdAt: newMessage.createdAt
                 }
               ]
             }
