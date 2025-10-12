@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+
+type Locale = "en" | "zh";
 
 export type BrokerProfile = {
   company: string | null;
@@ -37,6 +39,8 @@ const defaultProfile: BrokerProfile = {
 
 export function BrokerProfileForm() {
   const { data: session } = useSession();
+  const [locale, setLocale] = useState<Locale>("en");
+  const t = useCallback((en: string, zh: string) => (locale === "zh" ? zh : en), [locale]);
   const [profile, setProfile] = useState<BrokerProfile>(defaultProfile);
   const [formState, setFormState] = useState({
     company: "",
@@ -59,6 +63,12 @@ export function BrokerProfileForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setLocale(navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
+    }
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       try {
         const response = await fetch("/api/broker/profile", {
@@ -67,7 +77,7 @@ export function BrokerProfileForm() {
           cache: "no-store"
         });
         if (!response.ok) {
-          throw new Error("Failed to load broker profile");
+          throw new Error(t("Failed to load broker profile", "加载经纪人资料失败"));
         }
         const data = (await response.json()) as { profile: BrokerProfile };
         setProfile(data.profile);
@@ -88,14 +98,14 @@ export function BrokerProfileForm() {
         });
       } catch (err) {
         console.error(err);
-        setError("Unable to load broker profile. Please try again later.");
+        setError(t("Unable to load broker profile. Please try again later.", "无法加载经纪人资料，请稍后重试。"));
       } finally {
         setLoading(false);
       }
     };
 
     load().catch((err) => console.error(err));
-  }, []);
+  }, [t]);
 
   const hasChanges = useMemo(() => {
     if (!profile) return true;
@@ -190,13 +200,13 @@ export function BrokerProfileForm() {
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({ error: "Save failed" }));
-        throw new Error(body.error ?? "Unable to save profile");
+        const body = await response.json().catch(() => ({ error: t("Save failed", "保存失败") }));
+        throw new Error(body.error ?? t("Unable to save profile", "无法保存资料"));
       }
 
       const data = (await response.json()) as { profile: BrokerProfile };
       setProfile(data.profile);
-      setStatus("Profile saved successfully.");
+      setStatus(t("Profile saved successfully.", "资料已保存。"));
       setFormState({
         company: data.profile.company ?? "",
         headline: data.profile.headline ?? "",
@@ -214,7 +224,7 @@ export function BrokerProfileForm() {
       });
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "Unable to save broker profile.");
+      setError(err instanceof Error ? err.message : t("Unable to save broker profile.", "无法保存经纪人资料。"));
     } finally {
       setSaving(false);
     }
@@ -223,7 +233,7 @@ export function BrokerProfileForm() {
   if (loading) {
     return (
       <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-10 text-center text-slate-300 shadow-2xl shadow-black/20">
-        Loading broker profile...
+        {t("Loading broker profile...", "正在加载经纪人资料…")}
       </div>
     );
   }
@@ -238,63 +248,74 @@ export function BrokerProfileForm() {
 
   return (
     <form className="space-y-8" onSubmit={handleSubmit}>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+          className="rounded-full border border-white/15 px-4 py-2 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+        >
+          {locale === "zh" ? "English" : "中文"}
+        </button>
+      </div>
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Broker Profile</h1>
+        <h1 className="text-3xl font-semibold text-white">{t("Broker Profile", "经纪人资料")}</h1>
         <p className="text-sm text-slate-400">
-          Manage the details borrowers see when they explore your lending offerings. All updates are saved instantly to your Golden Bridge
-          workspace.
+          {t(
+            "Manage the details borrowers see when they explore your lending offerings. All updates are saved instantly to your Golden Bridge workspace.",
+            "管理借款人可见的团队信息，所有更新都会即时同步到金桥工作台。"
+          )}
         </p>
       </header>
 
       <section className="grid gap-6 rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-2xl shadow-black/20">
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="company">
-            Company name
+            {t("Company name", "机构名称")}
             <input
               id="company"
               value={formState.company}
               onChange={handleChange}
-              placeholder="Golden Bridge Lending Partners"
+              placeholder={t("Golden Bridge Lending Partners", "金桥贷款合作伙伴")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="headline">
-            Headline
+            {t("Headline", "一句话亮点")}
             <input
               id="headline"
               value={formState.headline}
               onChange={handleChange}
-              placeholder="Specialised in jumbo loans and relocation programs"
+              placeholder={t("Specialised in jumbo loans and relocation programs", "擅长大额贷款与异地购房计划")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
         </fieldset>
 
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="bio">
-          Bio
+          {t("Bio", "团队简介")}
           <textarea
             id="bio"
             rows={5}
             value={formState.bio}
             onChange={handleChange}
-            placeholder="Share your lending expertise, key programmes and differentiators."
+            placeholder={t("Share your lending expertise, key programmes and differentiators.", "请介绍团队优势、核心产品与差异化亮点。")}
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="licenseStates">
-            Licensed states (comma separated)
+            {t("Licensed states (comma separated)", "执照覆盖州（逗号分隔）")}
             <input
               id="licenseStates"
               value={formState.licenseStates}
               onChange={handleChange}
-              placeholder="CA, NY, WA"
+              placeholder={t("CA, NY, WA", "CA, NY, WA")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="yearsExperience">
-            Years of experience
+            {t("Years of experience", "从业年限")}
             <input
               id="yearsExperience"
               type="number"
@@ -302,7 +323,7 @@ export function BrokerProfileForm() {
               max={80}
               value={formState.yearsExperience}
               onChange={handleChange}
-              placeholder="10"
+              placeholder={t("10", "10")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
@@ -310,7 +331,7 @@ export function BrokerProfileForm() {
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="minRate">
-            Introductory rate (from %)
+            {t("Introductory rate (from %)", "起始利率（最低%）")}
             <input
               id="minRate"
               type="number"
@@ -319,12 +340,12 @@ export function BrokerProfileForm() {
               step="0.01"
               value={formState.minRate}
               onChange={handleChange}
-              placeholder="5.50"
+              placeholder={t("5.50", "5.50")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="maxRate">
-            Introductory rate (to %)
+            {t("Introductory rate (to %)", "起始利率（最高%）")}
             <input
               id="maxRate"
               type="number"
@@ -333,7 +354,7 @@ export function BrokerProfileForm() {
               step="0.01"
               value={formState.maxRate}
               onChange={handleChange}
-              placeholder="6.25"
+              placeholder={t("6.25", "6.25")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
@@ -341,17 +362,17 @@ export function BrokerProfileForm() {
 
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="loanPrograms">
-            Loan programmes offered (comma separated)
+            {t("Loan programmes offered (comma separated)", "可提供的贷款产品（逗号分隔）")}
             <input
               id="loanPrograms"
               value={formState.loanPrograms}
               onChange={handleChange}
-              placeholder="Jumbo, DSCR, Bank statement"
+              placeholder={t("Jumbo, DSCR, Bank statement", "Jumbo, DSCR, Bank statement")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
           <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="minCreditScore">
-            Minimum credit score accepted
+            {t("Minimum credit score accepted", "最低可接受信用分")}
             <input
               id="minCreditScore"
               type="number"
@@ -359,14 +380,14 @@ export function BrokerProfileForm() {
               max={850}
               value={formState.minCreditScore}
               onChange={handleChange}
-              placeholder="680"
+              placeholder={t("680", "680")}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
             />
           </label>
         </fieldset>
 
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="maxLoanToValue">
-          Maximum loan-to-value (%)
+          {t("Maximum loan-to-value (%)", "最高贷款成数（%）")}
           <input
             id="maxLoanToValue"
             type="number"
@@ -374,13 +395,13 @@ export function BrokerProfileForm() {
             max={100}
             value={formState.maxLoanToValue}
             onChange={handleChange}
-            placeholder="90"
+            placeholder={t("90", "90")}
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
 
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="closingSpeedDays">
-          Average closing speed (days)
+          {t("Average closing speed (days)", "平均放款速度（天）")}
           <input
             id="closingSpeedDays"
             type="number"
@@ -388,31 +409,31 @@ export function BrokerProfileForm() {
             max={120}
             value={formState.closingSpeedDays}
             onChange={handleChange}
-            placeholder="14"
+            placeholder={t("14", "14")}
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
 
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="website">
-          Website
+          {t("Website", "官网链接")}
           <input
             id="website"
             type="url"
             value={formState.website}
             onChange={handleChange}
-            placeholder="https://your-brokerage.com"
+            placeholder={t("https://your-brokerage.com", "https://your-brokerage.com")}
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
 
         <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="notes">
-          Additional notes
+          {t("Additional notes", "补充说明")}
           <textarea
             id="notes"
             rows={4}
             value={formState.notes}
             onChange={handleChange}
-            placeholder="Closing speed, documentation requirements, special programmes, etc."
+            placeholder={t("Closing speed, documentation requirements, special programmes, etc.", "例如放款时效、资料要求、特色方案等。")}
             className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
           />
         </label>
@@ -436,7 +457,7 @@ export function BrokerProfileForm() {
           disabled={saving || !hasChanges}
           className="rounded-full bg-brand-primary px-6 py-3 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Saving..." : "Save profile"}
+          {saving ? t("Saving...", "保存中…") : t("Save profile", "保存资料")}
         </button>
         {hasChanges && !saving && (
           <button
@@ -462,11 +483,13 @@ export function BrokerProfileForm() {
             }}
             className="rounded-full border border-white/15 px-6 py-3 text-sm text-slate-300 transition hover:border-brand-accent/60 hover:text-brand-accent"
           >
-            Discard changes
+            {t("Discard changes", "放弃修改")}
           </button>
         )}
         <p className="text-xs text-slate-500">
-          Signed in as {session?.user?.email}. Changes are visible immediately across Golden Bridge.
+          {locale === "zh"
+            ? `当前账号 ${session?.user?.email}。所有变更将立即同步金桥平台。`
+            : `Signed in as ${session?.user?.email}. Changes are visible immediately across Golden Bridge.`}
         </p>
       </div>
     </form>

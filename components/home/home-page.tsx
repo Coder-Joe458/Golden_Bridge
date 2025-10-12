@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import type { Session } from "next-auth";
 import { loanDirectory } from "@/lib/loan-data";
 import {
   buildFallbackResponse,
@@ -167,9 +168,7 @@ function translateLoanProgram(program: string): string {
   return normalized;
 }
 
-export function HomePage(): JSX.Element {
-
-  const { data: session } = useSession();
+function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const [locale, setLocale] = useState<Locale>("en");
   const questions = useMemo(() => getChatQuestions(locale), [locale]);
 
@@ -1473,6 +1472,232 @@ export function HomePage(): JSX.Element {
       )}
     </div>
   );
+}
+
+function BrokerHome({ session }: { session: Session | null }): JSX.Element {
+  const [locale, setLocale] = useState<Locale>("en");
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setLocale(navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
+    }
+  }, []);
+
+  const t = useCallback((en: string, zh: string) => (locale === "zh" ? zh : en), [locale]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="relative overflow-hidden bg-gradient-to-br from-brand-dark via-slate-900 to-slate-950 pb-20">
+        <div className="absolute inset-0 opacity-60">
+          <div className="absolute -top-1/3 left-1/4 h-80 w-80 rounded-full bg-brand-primary/20 blur-3xl" />
+          <div className="absolute top-1/4 right-1/3 h-72 w-72 rounded-full bg-brand-accent/20 blur-3xl" />
+        </div>
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pt-10 md:px-10">
+          <nav className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="rounded-full border border-brand-primary/40 px-4 py-1 text-sm uppercase tracking-widest text-brand-primary">
+                Golden Bridge
+              </span>
+              <p className="text-sm text-slate-300">
+                {t("Broker intelligence workspace", "经纪人智能工作台")}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+                className="hidden rounded-full border border-white/15 px-4 py-2 text-sm text-white transition hover:border-brand-primary/60 hover:text-brand-primary sm:inline"
+              >
+                {locale === "zh" ? "English" : "中文"}
+              </button>
+              <Link
+                href="/dashboard/broker"
+                className="rounded-full border border-brand-primary/40 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:-translate-y-0.5 hover:bg-brand-primary/10"
+              >
+                {t("Open broker dashboard", "进入经纪人工作台")}
+              </Link>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm text-white transition hover:border-brand-primary/60 hover:text-brand-primary"
+              >
+                {t("Sign out", "退出登录")}
+              </button>
+            </div>
+          </nav>
+
+          <div className="grid items-center gap-16 md:grid-cols-[1.3fr,1fr]">
+            <div className="space-y-6">
+              <h1 className="text-4xl font-semibold text-white md:text-5xl">
+                {t(
+                  "Welcome back, your lending edge is live.",
+                  "欢迎回来，您的贷款优势已准备就绪。"
+                )}
+              </h1>
+              <p className="text-lg text-slate-300">
+                {t(
+                  "Keep your profile fresh, respond to borrower chats, and spotlight niche programmes tailored for Golden Bridge borrowers.",
+                  "随时更新团队资料、回复借款人对话，并展示适配金桥客户的特色贷款方案。"
+                )}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/dashboard/broker#profile"
+                  className="rounded-full bg-brand-primary px-6 py-3 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5"
+                >
+                  {t("Update lending profile", "完善贷款资料")}
+                </Link>
+                <Link
+                  href="/dashboard/broker#leads"
+                  className="rounded-full border border-white/20 px-6 py-3 text-sm text-slate-300 transition hover:border-brand-accent/60 hover:text-brand-accent"
+                >
+                  {t("Review borrower leads", "查看潜在客户")}
+                </Link>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl shadow-black/20">
+              <h2 className="text-xl font-semibold text-white">
+                {t("Today’s status", "今日总览")}
+              </h2>
+              <ul className="mt-6 space-y-4 text-sm text-slate-300">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-2.5 w-2.5 flex-none rounded-full bg-brand-primary" />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {t("Profile visibility", "资料曝光度")}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {t(
+                        "Borrowers can view your highlights across matching flows.",
+                        "您的亮点已在匹配流程中展示给借款人。"
+                      )}
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-2.5 w-2.5 flex-none rounded-full bg-emerald-400" />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {t("Chat availability", "对话状态")}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {t(
+                        "Respond to borrower questions from the dashboard conversations hub.",
+                        "可在工作台的对话中心回复借款人咨询。"
+                      )}
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-2.5 w-2.5 flex-none rounded-full bg-brand-accent" />
+                  <div>
+                    <p className="font-semibold text-white">
+                      {t("Programme spotlights", "产品亮点展示")}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {t(
+                        "Upload marketing assets to feature unique structures and case studies.",
+                        "上传宣传素材，展示特色结构与成功案例。"
+                      )}
+                    </p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 py-12 md:px-10">
+        <section className="grid gap-6 md:grid-cols-2">
+          <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20">
+            <h3 className="text-xl font-semibold text-white">
+              {t("Quick actions", "快速操作")}
+            </h3>
+            <p className="text-sm text-slate-400">
+              {t(
+                "Stay top-of-mind with timely updates and rapid borrower follow-up.",
+                "通过及时更新与快速跟进，持续提升平台曝光度。"
+              )}
+            </p>
+            <ul className="space-y-3 text-sm text-slate-300">
+              <li>{t("✔ Publish updated rate sheets or niche programme bulletins.", "✔ 发布最新利率表或特色方案速览。")}</li>
+              <li>{t("✔ Confirm availability windows for expedited closings.", "✔ 确认可快速放款的时间窗口。")}</li>
+              <li>{t("✔ Share bilingual talking points for borrower hand-offs.", "✔ 提供中英要点，便于无缝交接。")}</li>
+            </ul>
+          </div>
+          <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-xl shadow-black/20">
+            <h3 className="text-xl font-semibold text-white">
+              {t("Need a hand?", "需要协助？")}
+            </h3>
+            <p className="text-sm text-slate-400">
+              {t(
+                "Our brokerage success team can help refine your presence and activate custom campaigns.",
+                "金桥经纪人支持团队可协助优化内容并开启定制化营销。"
+              )}
+            </p>
+            <a
+              href="mailto:brokers@goldenbridge.ai"
+              className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5"
+            >
+              {t("Email the success desk", "联系支持团队")}
+            </a>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-8 shadow-xl shadow-black/20">
+          <h3 className="text-xl font-semibold text-white">
+            {t("Borrower journey snapshot", "借款人旅程速览")}
+          </h3>
+          <div className="mt-6 grid gap-6 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-5">
+              <p className="text-sm font-semibold text-white">
+                {t("Discovery & qualification", "需求挖掘与资质确认")}
+              </p>
+              <p className="mt-3 text-xs text-slate-400">
+                {t(
+                  "AI captures borrower requirements and surfaces lenders with matching coverage.",
+                  "AI 收集借款需求，并匹配具备对应资质的贷款方。"
+                )}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-5">
+              <p className="text-sm font-semibold text-white">
+                {t("Introduction & chat", "智能引荐与对话")}
+              </p>
+              <p className="mt-3 text-xs text-slate-400">
+                {t(
+                  "Borrowers may reach out directly—respond from your dashboard inbox.",
+                  "借款人可能直接发起沟通，可在工作台收件箱快速回复。"
+                )}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-5">
+              <p className="text-sm font-semibold text-white">
+                {t("Hand-off & closing", "交接与放款")}
+              </p>
+              <p className="mt-3 text-xs text-slate-400">
+                {t(
+                  "Once aligned, move into your underwriting stack while we track milestones.",
+                  "确认合作后即可进入您的审批流程，平台同步跟进关键节点。"
+                )}
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+export function HomePage(): JSX.Element {
+  const { data: session } = useSession();
+
+  if (session?.user?.role === "BROKER") {
+    return <BrokerHome session={session} />;
+  }
+
+  return <BorrowerHome session={session ?? null} />;
 }
 
 type InputFieldProps = {
