@@ -196,6 +196,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const [brokerChatLoading, setBrokerChatLoading] = useState<boolean>(false);
   const [brokerChatInput, setBrokerChatInput] = useState<string>("");
   const [brokerChatError, setBrokerChatError] = useState<string | null>(null);
+  const [mobileInsightsOpen, setMobileInsightsOpen] = useState<boolean>(false);
 
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -736,7 +737,111 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="relative overflow-hidden bg-gradient-to-br from-brand-dark via-slate-900 to-slate-950 pb-24">
+      <div className="flex min-h-screen flex-col md:hidden">
+        <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-brand-primary/40 px-3 py-1 text-xs uppercase tracking-widest text-brand-primary">
+              Golden Bridge
+            </span>
+            <button
+              type="button"
+              onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+            >
+              {locale === "zh" ? "EN" : "中"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileInsightsOpen(true)}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+            >
+              {t("Insights", "智能摘要")}
+            </button>
+            {session ? (
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-rose-400/70 hover:text-rose-300"
+              >
+                {t("Sign out", "退出")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => signIn(undefined, { callbackUrl: "/" })}
+                className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+              >
+                {t("Sign in", "登录")}
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div ref={chatContainerRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          {messages.map((message) => {
+            const isUser = message.author === "user";
+            return (
+              <div key={message.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    isUser ? "bg-brand-primary text-brand-dark" : "bg-white/10 text-slate-100"
+                  }`}
+                >
+                  {!isUser && <p className="mb-2 text-[10px] uppercase tracking-widest text-slate-400">Golden Bridge AI</p>}
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <form onSubmit={handleChatSubmit} className="border-t border-white/10 bg-slate-950 px-4 py-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              id="borrower-input-mobile"
+              ref={textareaRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              rows={1}
+              className="max-h-32 flex-1 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+              placeholder={t("Describe your financing goals…", "请输入贷款需求…")}
+            />
+            <button
+              type="submit"
+              disabled={loadingChat}
+              className="rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {t("Send", "发送")}
+            </button>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <button
+              type="button"
+              onClick={handleChatReset}
+              className="rounded-full border border-white/10 px-3 py-1 transition hover:border-brand-accent/60 hover:text-brand-accent"
+            >
+              {t("Reset", "重置")}
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleVoiceClick}
+                disabled={!voiceSupported}
+                className="rounded-full border border-white/10 px-3 py-1 transition hover:border-brand-primary/60 hover:text-brand-primary disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t("Voice", "语音")}
+              </button>
+              <span className="text-[10px] text-slate-500">{voiceStatus}</span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div className="hidden md:block">
+        <div className="min-h-screen bg-slate-950 text-slate-100">
+          <header className="relative overflow-hidden bg-gradient-to-br from-brand-dark via-slate-900 to-slate-950 pb-24">
         <div className="absolute inset-0 opacity-60">
           <div className="absolute -top-1/3 left-1/4 h-80 w-80 rounded-full bg-brand-primary/20 blur-3xl" />
           <div className="absolute top-1/4 right-1/3 h-72 w-72 rounded-full bg-brand-accent/20 blur-3xl" />
@@ -1273,8 +1378,150 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           </div>
         </div>
       </footer>
+        </div>
+      </div>
+
+      {mobileInsightsOpen && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-black/60 backdrop-blur-sm md:hidden">
+          <div className="mt-auto max-h-[80vh] w-full space-y-6 rounded-t-3xl border-t border-white/10 bg-slate-950 p-6">
+            <header className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">{t("Borrower tools", "借款人信息")}</h2>
+              <button
+                type="button"
+                onClick={() => setMobileInsightsOpen(false)}
+                className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+              >
+                {t("Close", "关闭")}
+              </button>
+            </header>
+
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-white">{t("Borrower profile", "借款人资料")}</h3>
+              <div className="grid gap-3">
+                <InputField
+                  id="name"
+                  label={t("Full name", "姓名")}
+                  placeholder={t("Alex Morgan", "张三")}
+                  value={profile.name}
+                  onChange={handleProfileChange}
+                />
+                <InputField
+                  id="city"
+                  label={t("Property location (City, State)", "房产所在城市 / 州")}
+                  placeholder={t("Seattle, WA", "Los Angeles, CA")}
+                  value={profile.city}
+                  onChange={handleProfileChange}
+                />
+                <InputField
+                  id="credit"
+                  type="number"
+                  label={t("Credit score", "信用分")}
+                  placeholder="720"
+                  value={profile.credit}
+                  onChange={handleProfileChange}
+                />
+                <InputField
+                  id="amount"
+                  type="number"
+                  label={t("Target loan amount (USD)", "预计贷款金额 (USD)")}
+                  placeholder="700000"
+                  value={profile.amount}
+                  onChange={handleProfileChange}
+                />
+                <InputField
+                  id="priority"
+                  label={t("Top priority", "最看重的条件")}
+                  placeholder={t("Low rate, max leverage, fast close, or minimal documents", "例如：利率低 / 成数高 / 放款快 / 资料最少")}
+                  value={profile.priority}
+                  onChange={handleProfileChange}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleProfileSave}
+                className="w-full rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5"
+              >
+                {t("Save profile", "保存资料")}
+              </button>
+              {profileStatus && <p className="text-xs text-emerald-300">{profileStatus}</p>}
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">{t("Top matches", "精选匹配")}</h3>
+                <button
+                  type="button"
+                  onClick={handleRefreshRecommendations}
+                  className="text-xs text-slate-400 transition hover:text-brand-primary"
+                >
+                  {t("Refresh", "刷新")}
+                </button>
+              </div>
+              {recommendationsLoading && <p className="text-xs text-slate-400">{t("Updating recommendations…", "正在刷新推荐…")}</p>}
+              {recommendationError && <p className="text-xs text-rose-300">{recommendationError}</p>}
+              <div className="space-y-3">
+                {recommendations.map((broker) => (
+                  <div key={broker.id} className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-xs text-slate-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{broker.company ?? broker.lenderName}</p>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-500">
+                          {broker.licenseStates.length
+                            ? broker.licenseStates.join(", ")
+                            : t("Nationwide availability", "各州均可协助")}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-brand-primary/40 px-2 py-1 text-[10px] text-brand-primary">
+                        {(() => {
+                          switch (broker.category) {
+                            case "lowestRate":
+                              return t("Low rate", "低利率");
+                            case "highestLtv":
+                              return t("High LTV", "高成数");
+                            case "fastestClosing":
+                              return t("Fast close", "放款快");
+                            default:
+                              return t("Alt match", "备选");
+                          }
+                        })()}
+                      </span>
+                    </div>
+                    {broker.headline && (
+                      <p className="mt-2 text-slate-300">
+                        {locale === "zh" ? translateText(broker.headline) : broker.headline}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {broker.loanPrograms.slice(0, 4).map((program) => (
+                        <span key={program} className="rounded-full border border-white/10 px-2 py-1 text-[11px]">
+                          {locale === "zh" ? translateLoanProgram(program) : program}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleStartBrokerChat(broker);
+                        setMobileInsightsOpen(false);
+                      }}
+                      className="mt-3 w-full rounded-full border border-brand-primary/60 px-3 py-2 text-sm font-semibold text-brand-primary transition hover:bg-brand-primary/10"
+                    >
+                      {t("Chat with this lender", "联系贷款方")}
+                    </button>
+                  </div>
+                ))}
+                {!recommendations.length && !recommendationsLoading && (
+                  <p className="text-xs text-slate-400">{t("No matches yet. Share more details to unlock recommendations.", "暂无匹配，请补充更多需求信息。")}</p>
+                )}
+                {matchStatus && <p className="text-xs text-emerald-300">{matchStatus}</p>}
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+
       {activeBrokerChat && (
-        <div className="fixed bottom-6 right-6 z-40 w-full max-w-md rounded-3xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/30 backdrop-blur-lg">
+        <div className="fixed inset-x-0 bottom-0 z-40 w-full rounded-t-3xl border border-white/10 bg-slate-950/95 shadow-2xl shadow-black/30 backdrop-blur-lg md:inset-auto md:bottom-6 md:right-6 md:w-full md:max-w-md md:rounded-3xl">
           <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-white">{activeBrokerChat.brokerName}</p>
