@@ -797,6 +797,73 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           })}
         </div>
 
+        <div className="space-y-3 border-t border-white/5 bg-slate-950/80 px-4 py-4 text-xs text-slate-300">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              {t("Top matches", "精选贷款方")}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRefreshRecommendations}
+                className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+              >
+                {t("Refresh", "刷新")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileInsightsOpen(true)}
+                className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-slate-300 transition hover:border-brand-accent/60 hover:text-brand-accent"
+              >
+                {t("View details", "查看详情")}
+              </button>
+            </div>
+          </div>
+
+          {recommendationsLoading && <p className="text-[11px] text-slate-400">{t("Updating recommendations…", "正在刷新推荐…")}</p>}
+          {recommendationError && <p className="text-[11px] text-rose-300">{recommendationError}</p>}
+
+          <div className="space-y-2">
+            {recommendations.slice(0, 3).map((broker) => (
+              <button
+                key={broker.id}
+                type="button"
+                onClick={() => handleStartBrokerChat(broker)}
+                className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-left transition hover:border-brand-primary/60 hover:text-brand-primary"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-white">{broker.company ?? broker.lenderName}</p>
+                  <span className="rounded-full border border-brand-primary/40 px-2 py-1 text-[10px] text-brand-primary">
+                    {(() => {
+                      switch (broker.category) {
+                        case "lowestRate":
+                          return t("Low rate", "低利率");
+                        case "highestLtv":
+                          return t("High LTV", "高成数");
+                        case "fastestClosing":
+                          return t("Fast close", "放款快");
+                        default:
+                          return t("Alt match", "备选");
+                      }
+                    })()}
+                  </span>
+                </div>
+                {broker.headline && (
+                  <p className="mt-2 text-xs text-slate-300">
+                    {locale === "zh" ? translateText(broker.headline) : broker.headline}
+                  </p>
+                )}
+              </button>
+            ))}
+            {!recommendations.length && !recommendationsLoading && (
+              <p className="rounded-2xl border border-dashed border-white/10 px-4 py-3 text-[11px] text-slate-400">
+                {t("No matches yet. Share more details to unlock recommendations.", "暂无匹配，请补充更多需求信息。")}
+              </p>
+            )}
+            {matchStatus && <p className="text-[11px] text-emerald-300">{matchStatus}</p>}
+          </div>
+        </div>
+
         <form onSubmit={handleChatSubmit} className="border-t border-white/10 bg-slate-950 px-4 py-3">
           <div className="flex items-end gap-2">
             <textarea
