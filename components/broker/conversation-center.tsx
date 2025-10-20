@@ -44,6 +44,8 @@ type BrokerMessage = {
   createdAt: string;
 };
 
+type Locale = "en" | "zh";
+
 const fetchJson = async <T,>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, {
     ...init,
@@ -60,10 +62,10 @@ const fetchJson = async <T,>(input: RequestInfo | URL, init?: RequestInit): Prom
   return response.json() as Promise<T>;
 };
 
-const formatTime = (input: string): string => {
+const formatTime = (input: string, locale: Locale): string => {
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
     hour: "numeric",
     minute: "2-digit",
     month: "short",
@@ -81,8 +83,17 @@ export function BrokerConversationCenter(): JSX.Element {
   const [messageError, setMessageError] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState<string>("");
   const [sending, setSending] = useState<boolean>(false);
+  const [locale, setLocale] = useState<Locale>("en");
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setLocale(navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
+    }
+  }, []);
+
+  const t = useCallback((en: string, zh: string) => (locale === "zh" ? zh : en), [locale]);
 
   const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
@@ -97,12 +108,13 @@ export function BrokerConversationCenter(): JSX.Element {
         setSelectedConversationId(sorted[0].id);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load conversations";
-      setConversationError(message);
+      const fallback = t("Failed to load conversations", "加载对话失败");
+      const message = error instanceof Error ? error.message : fallback;
+      setConversationError(message || fallback);
     } finally {
       setLoadingConversations(false);
     }
-  }, [selectedConversationId]);
+  }, [selectedConversationId, t]);
 
   const loadConversationDetail = useCallback(
     async (conversationId: string) => {
@@ -113,13 +125,14 @@ export function BrokerConversationCenter(): JSX.Element {
         setActiveConversation(data);
         setSelectedConversationId(conversationId);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to load messages";
-        setMessageError(message);
+        const fallback = t("Failed to load messages", "加载消息失败");
+        const message = error instanceof Error ? error.message : fallback;
+        setMessageError(message || fallback);
       } finally {
         setMessagesLoading(false);
       }
     },
-    []
+    [t]
   );
 
   useEffect(() => {
@@ -167,8 +180,9 @@ export function BrokerConversationCenter(): JSX.Element {
       // refresh list to update last message preview
       loadConversations().catch((error) => console.error(error));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to send";
-      setMessageError(message);
+      const fallback = t("Failed to send message", "消息发送失败");
+      const message = error instanceof Error ? error.message : fallback;
+      setMessageError(message || fallback);
     } finally {
       setSending(false);
     }
@@ -179,24 +193,39 @@ export function BrokerConversationCenter(): JSX.Element {
 
   const participantName = useMemo(() => {
     if (!activeConversation) return "";
-    return activeConversation.conversation.borrower.name ?? activeConversation.conversation.borrower.email ?? "Borrower";
-  }, [activeConversation]);
+    return (
+      activeConversation.conversation.borrower.name ??
+      activeConversation.conversation.borrower.email ??
+      t("Borrower", "借款人")
+    );
+  }, [activeConversation, t]);
 
   return (
     <section className="grid gap-6 rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-black/20 lg:grid-cols-[320px,1fr]">
       <div className="flex flex-col gap-4 border-b border-white/10 pb-4 lg:border-b-0 lg:border-r lg:pr-4">
         <header className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-white">Borrower Chats</p>
-            <p className="text-xs text-slate-400">Respond directly to borrower enquiries.</p>
+            <p className="text-sm font-semibold text-white">{t("Borrower Chats", "借款人对话")}</p>
+            <p className="text-xs text-slate-400">
+              {t("Respond directly to borrower enquiries.", "在这里直接回应借款人。")}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => loadConversations().catch((error) => console.error(error))}
-            className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+            >
+              {locale === "zh" ? "EN" : "中"}
+            </button>
+            <button
+              type="button"
+              onClick={() => loadConversations().catch((error) => console.error(error))}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs text-slate-300 transition hover:border-brand-primary/60 hover:text-brand-primary"
+            >
+              {t("Refresh", "刷新")}
+            </button>
+          </div>
         </header>
 
         {conversationError && (
@@ -204,17 +233,17 @@ export function BrokerConversationCenter(): JSX.Element {
         )}
 
         <div className="flex flex-col gap-2 overflow-y-auto rounded-2xl border border-white/5 bg-slate-950/60 p-2">
-          {loadingConversations && <p className="text-xs text-slate-400">Loading conversations…</p>}
+          {loadingConversations && <p className="text-xs text-slate-400">{t("Loading conversations…", "正在加载对话…")}</p>}
           {!loadingConversations && conversations.length === 0 && (
-            <p className="text-xs text-slate-400">No borrower chats yet.</p>
+            <p className="text-xs text-slate-400">{t("No borrower chats yet.", "暂无借款人对话。")}</p>
           )}
           {conversations.map((conversation) => {
             const isActive = selectedConversationId === conversation.id;
             const borrowerName =
-              conversation.borrower.name ?? conversation.borrower.email ?? "Borrower";
+              conversation.borrower.name ?? conversation.borrower.email ?? t("Borrower", "借款人");
             const lastMessagePreview = conversation.lastMessage?.content
               ? conversation.lastMessage.content.slice(0, 80)
-              : "No messages yet.";
+              : t("No messages yet.", "暂无消息。");
             return (
               <button
                 key={conversation.id}
@@ -232,7 +261,7 @@ export function BrokerConversationCenter(): JSX.Element {
                     {borrowerName}
                   </p>
                   <span className="text-[10px] uppercase tracking-widest text-slate-500">
-                    {formatTime(conversation.lastMessageAt)}
+                    {formatTime(conversation.lastMessageAt, locale)}
                   </span>
                 </div>
                 <p className="truncate text-[11px]">{lastMessagePreview}</p>
@@ -251,12 +280,12 @@ export function BrokerConversationCenter(): JSX.Element {
                 <p className="text-xs text-slate-400">{activeConversation.conversation.borrower.email}</p>
               </div>
               <span className="rounded-full border border-emerald-400/50 px-3 py-1 text-[11px] uppercase tracking-widest text-emerald-300">
-                {activeConversation.conversation.status === "ACTIVE" ? "Active" : "Closed"}
+                {activeConversation.conversation.status === "ACTIVE" ? t("Active", "进行中") : t("Closed", "已结束")}
               </span>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4 text-sm">
-              {messagesLoading && <p className="text-xs text-slate-400">Loading messages…</p>}
+              {messagesLoading && <p className="text-xs text-slate-400">{t("Loading messages…", "正在加载消息…")}</p>}
               {messageError && (
                 <div className="rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-2 text-xs text-red-200">{messageError}</div>
               )}
@@ -287,7 +316,7 @@ export function BrokerConversationCenter(): JSX.Element {
                           isSelf ? "text-brand-dark/70" : "text-slate-400"
                         )}
                       >
-                        {formatTime(message.createdAt)}
+                        {formatTime(message.createdAt, locale)}
                       </span>
                     </div>
                   </div>
@@ -302,7 +331,7 @@ export function BrokerConversationCenter(): JSX.Element {
                   value={messageInput}
                   onChange={(event) => setMessageInput(event.target.value)}
                   rows={2}
-                  placeholder="Type your response…"
+                  placeholder={t("Type your response…", "输入回复…")}
                   className="max-h-32 flex-1 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
                 />
                 <button
@@ -310,14 +339,16 @@ export function BrokerConversationCenter(): JSX.Element {
                   disabled={sending || !messageInput.trim()}
                   className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {sending ? "Sending…" : "Send"}
+                  {sending ? t("Sending…", "发送中…") : t("Send", "发送")}
                 </button>
               </div>
             </form>
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center p-10 text-sm text-slate-400">
-            {loadingConversations ? "Loading conversations…" : "Select a borrower chat to view messages."}
+            {loadingConversations
+              ? t("Loading conversations…", "正在加载对话…")
+              : t("Select a borrower chat to view messages.", "请选择一条借款人对话查看消息。")}
           </div>
         )}
       </div>
