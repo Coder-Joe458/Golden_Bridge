@@ -11,7 +11,8 @@ const conversationInclude = {
     select: {
       id: true,
       name: true,
-      email: true
+      email: true,
+      phoneNumber: true
     }
   },
   broker: {
@@ -19,6 +20,7 @@ const conversationInclude = {
       id: true,
       name: true,
       email: true,
+      phoneNumber: true,
       brokerProfile: {
         select: {
           id: true,
@@ -38,7 +40,8 @@ export async function ensureConversationForBorrower(borrowerId: string, brokerPr
         select: {
           id: true,
           name: true,
-          email: true
+          email: true,
+          phoneNumber: true
         }
       }
     }

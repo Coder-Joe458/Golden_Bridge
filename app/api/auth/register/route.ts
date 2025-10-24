@@ -2,6 +2,8 @@ import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { ContactIdentifierError, parseContactIdentifier } from "@/lib/contact-identifiers";
+import type { ContactIdentifier } from "@/lib/contact-identifiers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +11,7 @@ export const fetchCache = "force-no-store";
 
 const registerSchema = z.object({
   name: z.string().min(2).max(80),
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string().min(8).max(72),
   role: z.enum(["BORROWER", "BROKER"])
 });
@@ -36,11 +38,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, email, password, role } = parsed.data;
+  const { name, identifier, password, role } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  let contact: ContactIdentifier;
+  try {
+    contact = parseContactIdentifier(identifier);
+  } catch (error) {
+    const message =
+      error instanceof ContactIdentifierError ? error.message : "Please provide a valid email or US phone number.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: contact.type === "email" ? { email: contact.value } : { phoneNumber: contact.value }
+  });
   if (existing) {
-    return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
+    const message =
+      contact.type === "email"
+        ? "An account with that email already exists."
+        : "An account with that phone number already exists.";
+    return NextResponse.json({ error: message }, { status: 409 });
   }
 
   const passwordHash = await hash(password, 10);
@@ -49,7 +66,8 @@ export async function POST(request: Request) {
     await prisma.user.create({
       data: {
         name,
-        email,
+        email: contact.type === "email" ? contact.value : null,
+        phoneNumber: contact.type === "phone" ? contact.value : null,
         passwordHash,
         role
       }

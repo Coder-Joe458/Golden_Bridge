@@ -3,9 +3,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
 import { z } from "zod";
+import { ContactIdentifierError, parseContactIdentifier } from "./contact-identifiers";
+import type { ContactIdentifier } from "./contact-identifiers";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string().min(8)
 });
 
@@ -20,7 +22,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Email or US phone", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
@@ -29,8 +31,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email }
+        let contact: ContactIdentifier;
+        try {
+          contact = parseContactIdentifier(parsed.data.identifier);
+        } catch (error) {
+          if (error instanceof ContactIdentifierError) {
+            return null;
+          }
+          console.error("Credential parse error", error);
+          return null;
+        }
+
+        const user = await prisma.user.findFirst({
+          where: contact.type === "email" ? { email: contact.value } : { phoneNumber: contact.value }
         });
 
         if (!user || !user.passwordHash) {
@@ -44,9 +57,11 @@ export const authOptions: NextAuthOptions = {
 
         const authUser: NextAuthUser = {
           id: user.id,
-          email: user.email,
-          name: user.name
+          email: user.email ?? undefined,
+          name: user.name ?? undefined
         };
+
+        (authUser as NextAuthUser & { phoneNumber?: string | null }).phoneNumber = user.phoneNumber;
 
         return authUser;
       }
@@ -60,6 +75,12 @@ export const authOptions: NextAuthOptions = {
       if (token.role && session.user) {
         session.user.role = token.role as "BORROWER" | "BROKER";
       }
+      if (session.user) {
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
+        }
+        session.user.phoneNumber = (token as typeof token & { phoneNumber?: string | null }).phoneNumber ?? null;
+      }
       return session;
     },
     async jwt({ token }) {
@@ -69,11 +90,13 @@ export const authOptions: NextAuthOptions = {
 
       const user = await prisma.user.findUnique({
         where: { id: token.sub },
-        select: { role: true }
+        select: { role: true, phoneNumber: true, email: true }
       });
 
       if (user) {
         token.role = user.role;
+        token.email = user.email ?? undefined;
+        (token as typeof token & { phoneNumber?: string | null }).phoneNumber = user.phoneNumber;
       }
 
       return token;

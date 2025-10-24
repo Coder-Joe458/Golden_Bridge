@@ -12,7 +12,7 @@ const roles = [
 export default function SignUpPage() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<typeof roles[number]["value"]>("BORROWER");
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export default function SignUpPage() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, role })
+        body: JSON.stringify({ name, identifier, password, role })
       });
 
       if (!response.ok) {
@@ -38,7 +38,7 @@ export default function SignUpPage() {
       // Auto sign-in after registration for smooth onboarding
       await signIn("credentials", {
         redirect: false,
-        email,
+        identifier,
         password,
         callbackUrl: "/"
       });
@@ -74,14 +74,14 @@ export default function SignUpPage() {
             />
           </label>
           <label className="flex flex-col gap-2 text-sm text-slate-300">
-            Work email
+            Work email or US phone
             <input
               required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              type="text"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
-              placeholder="you@company.com"
+              placeholder="you@company.com or +1 (555) 555-1234"
             />
           </label>
           <label className="flex flex-col gap-2 text-sm text-slate-300">

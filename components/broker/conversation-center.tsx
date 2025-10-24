@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
+import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
 
 type ConversationSummary = {
   id: string;
@@ -12,11 +13,13 @@ type ConversationSummary = {
     id: string;
     name: string | null;
     email: string | null;
+    phoneNumber: string | null;
   };
   broker: {
     id: string;
     name: string | null;
     email: string | null;
+    phoneNumber: string | null;
     brokerProfile?: {
       company: string | null;
       headline: string | null;
@@ -193,9 +196,12 @@ export function BrokerConversationCenter(): JSX.Element {
 
   const participantName = useMemo(() => {
     if (!activeConversation) return "";
+    const borrower = activeConversation.conversation.borrower;
+
     return (
-      activeConversation.conversation.borrower.name ??
-      activeConversation.conversation.borrower.email ??
+      borrower.name ??
+      borrower.email ??
+      formatUSPhoneForDisplay(borrower.phoneNumber) ??
       t("Borrower", "借款人")
     );
   }, [activeConversation, t]);
@@ -240,7 +246,10 @@ export function BrokerConversationCenter(): JSX.Element {
           {conversations.map((conversation) => {
             const isActive = selectedConversationId === conversation.id;
             const borrowerName =
-              conversation.borrower.name ?? conversation.borrower.email ?? t("Borrower", "借款人");
+              conversation.borrower.name ??
+              conversation.borrower.email ??
+              formatUSPhoneForDisplay(conversation.borrower.phoneNumber) ??
+              t("Borrower", "借款人");
             const lastMessagePreview = conversation.lastMessage?.content
               ? conversation.lastMessage.content.slice(0, 80)
               : t("No messages yet.", "暂无消息。");
@@ -277,7 +286,10 @@ export function BrokerConversationCenter(): JSX.Element {
             <div className="flex items-center justify-between gap-3 border-b border-white/5 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold text-white">{participantName}</p>
-                <p className="text-xs text-slate-400">{activeConversation.conversation.borrower.email}</p>
+                <p className="text-xs text-slate-400">
+                  {activeConversation.conversation.borrower.email ??
+                    formatUSPhoneForDisplay(activeConversation.conversation.borrower.phoneNumber)}
+                </p>
               </div>
               <span className="rounded-full border border-emerald-400/50 px-3 py-1 text-[11px] uppercase tracking-widest text-emerald-300">
                 {activeConversation.conversation.status === "ACTIVE" ? t("Active", "进行中") : t("Closed", "已结束")}

@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 export function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(searchParams.get("error"));
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export function SignInForm() {
 
     const response = await signIn("credentials", {
       redirect: false,
-      email,
+      identifier,
       password,
       callbackUrl: "/"
     });
@@ -27,7 +27,7 @@ export function SignInForm() {
     setLoading(false);
 
     if (response?.error) {
-      setError("Invalid email or password.");
+      setError("Invalid email/phone or password.");
       return;
     }
 
@@ -46,14 +46,14 @@ export function SignInForm() {
         {error && <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
         <form className="space-y-6" onSubmit={handleSubmit}>
           <label className="flex flex-col gap-2 text-sm text-slate-300">
-            Email
+            Email or US phone
             <input
               required
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              type="text"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
-              placeholder="you@company.com"
+              placeholder="you@company.com or +1 (555) 555-1234"
             />
           </label>
           <label className="flex flex-col gap-2 text-sm text-slate-300">

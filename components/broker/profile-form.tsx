@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
 
 type Locale = "en" | "zh";
 
@@ -487,9 +488,16 @@ export function BrokerProfileForm() {
           </button>
         )}
         <p className="text-xs text-slate-500">
-          {locale === "zh"
-            ? `当前账号 ${session?.user?.email}。所有变更将立即同步金桥平台。`
-            : `Signed in as ${session?.user?.email}. Changes are visible immediately across Golden Bridge.`}
+          {(() => {
+            const contact =
+              session?.user?.email ??
+              formatUSPhoneForDisplay(session?.user?.phoneNumber) ??
+              session?.user?.phoneNumber ??
+              t("your account", "您的账号");
+            return locale === "zh"
+              ? `当前账号 ${contact}。所有变更将立即同步金桥平台。`
+              : `Signed in as ${contact}. Changes are visible immediately across Golden Bridge.`;
+          })()}
         </p>
       </div>
     </form>

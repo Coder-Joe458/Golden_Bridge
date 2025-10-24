@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { loanDirectory } from "@/lib/loan-data";
+import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
 import {
   buildFallbackResponse,
   buildSystemPrompt,
@@ -37,6 +38,7 @@ type RecommendedBroker = {
   yearsExperience: number | null;
   website: string | null;
   contactEmail: string | null;
+  contactPhone: string | null;
   closingSpeedDays: number | null;
   category: "lowestRate" | "highestLtv" | "fastestClosing" | "additional";
 };
@@ -932,7 +934,15 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
               {session ? (
                 <>
                   <span className="hidden text-sm text-slate-200 sm:inline">
-                    {session.user.name ?? session.user.email} · {(() => {
+                    {(() => {
+                      const contact =
+                        session.user.email ??
+                        formatUSPhoneForDisplay(session.user.phoneNumber) ??
+                        session.user.phoneNumber ??
+                        t("Member", "用户");
+                      return (session.user.name ?? contact) + " · ";
+                    })()}
+                    {(() => {
                       switch (session.user.role) {
                         case "BROKER":
                           return t("Broker", "经纪人");

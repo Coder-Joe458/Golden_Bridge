@@ -46,7 +46,8 @@ export async function POST(request: Request) {
       user: {
         select: {
           name: true,
-          email: true
+          email: true,
+          phoneNumber: true
         }
       }
     }
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
       website: broker.website,
       lenderName: broker.company || broker.user?.name || "Golden Bridge Broker",
       contactEmail: broker.user?.email ?? null,
+      contactPhone: broker.user?.phoneNumber ?? null,
       closingSpeedDays: broker.closingSpeedDays ?? null
     };
   };
@@ -242,10 +244,11 @@ export async function POST(request: Request) {
         maxLoanToValue: broker.maxLoanToValue,
         yearsExperience: broker.yearsExperience,
         website: broker.website,
-        lenderName,
-        contactEmail: broker.user?.email ?? null,
-        score
-      };
+      lenderName,
+      contactEmail: broker.user?.email ?? null,
+      contactPhone: broker.user?.phoneNumber ?? null,
+      score
+    };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .filter((item) => item.score > -40);
