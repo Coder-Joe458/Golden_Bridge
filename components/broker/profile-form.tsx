@@ -39,7 +39,7 @@ const defaultProfile: BrokerProfile = {
 };
 
 export function BrokerProfileForm() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [locale, setLocale] = useState<Locale>("en");
   const t = useCallback((en: string, zh: string) => (locale === "zh" ? zh : en), [locale]);
   const [profile, setProfile] = useState<BrokerProfile>(defaultProfile);
@@ -58,16 +58,30 @@ export function BrokerProfileForm() {
     notes: "",
     closingSpeedDays: ""
   });
+  const [contactForm, setContactForm] = useState({
+    email: "",
+    phoneNumber: ""
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactStatus, setContactStatus] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
       setLocale(navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en");
     }
   }, []);
+
+  useEffect(() => {
+    setContactForm({
+      email: session?.user?.email ?? "",
+      phoneNumber: session?.user?.phoneNumber ?? ""
+    });
+  }, [session?.user?.email, session?.user?.phoneNumber]);
 
   useEffect(() => {
     const load = async () => {
@@ -142,6 +156,62 @@ export function BrokerProfileForm() {
       (profile.closingSpeedDays?.toString() ?? "") !== formState.closingSpeedDays.trim()
     );
   }, [formState, profile]);
+
+  const handleContactFieldChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = event.target;
+    setContactForm((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleContactSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setContactSaving(true);
+    setContactError(null);
+    setContactStatus(null);
+
+    const email = contactForm.email.trim();
+    const phoneNumber = contactForm.phoneNumber.trim();
+
+    if (!email && !phoneNumber) {
+      setContactError(t("Please keep at least one contact method.", "请至少保留一种联系方式。"));
+      setContactSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/account/contact", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phoneNumber })
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: t("Failed to update contact info.", "更新联系方式失败。") }));
+        throw new Error(body.error ?? t("Failed to update contact info.", "更新联系方式失败。"));
+      }
+
+      const data = (await response.json()) as { email: string | null; phoneNumber: string | null };
+      setContactForm({
+        email: data.email ?? "",
+        phoneNumber: data.phoneNumber ?? ""
+      });
+
+      setContactStatus(t("Contact details updated successfully.", "联系方式已更新。"));
+
+      if (updateSession) {
+        await updateSession({
+          user: {
+            ...(session?.user ?? {}),
+            email: data.email ?? undefined,
+            phoneNumber: data.phoneNumber ?? null
+          }
+        });
+      }
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : t("Failed to update contact info.", "更新联系方式失败。"));
+    } finally {
+      setContactSaving(false);
+    }
+  };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = event.target;
@@ -248,7 +318,63 @@ export function BrokerProfileForm() {
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit}>
+    <>
+      <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-white">{t("Account contact", "账号联系方式")}</h2>
+            <p className="text-xs text-slate-400">
+              {t(
+                "Keep an email or US phone number on file so borrowers and Golden Bridge can reach you.",
+                "请保留邮箱或美国手机号，以便借款人和金桥团队与您联系。"
+              )}
+            </p>
+          </div>
+        </div>
+        {contactError && (
+          <p className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-xs text-red-200">{contactError}</p>
+        )}
+        {contactStatus && (
+          <p className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200">
+            {contactStatus}
+          </p>
+        )}
+        <form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={handleContactSubmit}>
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="email">
+            {t("Email", "邮箱")}
+            <input
+              id="email"
+              type="email"
+              value={contactForm.email}
+              onChange={handleContactFieldChange}
+              placeholder="you@company.com"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="phoneNumber">
+            {t("US phone number", "美国手机号")}
+            <input
+              id="phoneNumber"
+              type="tel"
+              value={contactForm.phoneNumber}
+              onChange={handleContactFieldChange}
+              placeholder="+1 (555) 555-1234"
+              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+            />
+          </label>
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={contactSaving}
+              className="rounded-full bg-brand-primary px-5 py-2 text-xs font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {contactSaving ? t("Saving…", "保存中…") : t("Save contact", "保存联系方式")}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <form className="space-y-8" onSubmit={handleSubmit}>
       <div className="flex justify-end">
         <button
           type="button"
@@ -501,5 +627,6 @@ export function BrokerProfileForm() {
         </p>
       </div>
     </form>
+    </>
   );
 }
