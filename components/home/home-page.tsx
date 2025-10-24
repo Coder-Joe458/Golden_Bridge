@@ -175,7 +175,15 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const questions = useMemo(() => getChatQuestions(locale), [locale]);
 
   const t = useCallback((en: string, zh: string) => (locale === "zh" ? zh : en), [locale]);
+  const { update: updateSession } = useSession();
 
+  const [contactForm, setContactForm] = useState({
+    email: session?.user?.email ?? "",
+    phoneNumber: session?.user?.phoneNumber ?? ""
+  });
+  const [contactSaving, setContactSaving] = useState<boolean>(false);
+  const [contactStatus, setContactStatus] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>(() => createIntroMessages(locale));
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loadingChat, setLoadingChat] = useState<boolean>(false);
@@ -213,6 +221,13 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setRefreshKey((prev) => prev + 1);
     setVoiceStatus(locale === "zh" ? "语音输入待命…" : "Ready for voice capture...");
   }, [locale, t]);
+
+  useEffect(() => {
+    setContactForm({
+      email: session?.user?.email ?? "",
+      phoneNumber: session?.user?.phoneNumber ?? ""
+    });
+  }, [session?.user?.email, session?.user?.phoneNumber]);
 
   useEffect(() => {
     try {
@@ -526,6 +541,63 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
       recognitionRef.current.start();
     } catch (error) {
       setVoiceStatus(t("Voice capture is already running. Wrap up your phrase.", "语音识别正在进行，请先完成当前输入。"));
+    }
+  };
+
+  const handleContactFieldChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = event.target;
+    setContactForm((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleContactSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setContactSaving(true);
+    setContactError(null);
+    setContactStatus(null);
+
+    const email = contactForm.email.trim();
+    const phoneNumber = contactForm.phoneNumber.trim();
+
+    if (!email && !phoneNumber) {
+      setContactError(t("Please keep at least one contact method.", "请至少保留一种联系方式。"));
+      setContactSaving(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/account/contact", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phoneNumber })
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: t("Failed to update contact info.", "更新联系方式失败。") }));
+        throw new Error(body.error ?? t("Failed to update contact info.", "更新联系方式失败。"));
+      }
+
+      const data = (await response.json()) as { email: string | null; phoneNumber: string | null };
+      setContactForm({
+        email: data.email ?? "",
+        phoneNumber: data.phoneNumber ?? ""
+      });
+      setContactStatus(t("Contact details updated successfully.", "联系方式已更新。"));
+
+      if (updateSession) {
+        await updateSession({
+          user: {
+            ...(session?.user ?? {}),
+            email: data.email ?? undefined,
+            phoneNumber: data.phoneNumber ?? null
+          }
+        });
+      }
+    } catch (error) {
+      setContactError(
+        error instanceof Error ? error.message : t("Failed to update contact info.", "更新联系方式失败。")
+      );
+    } finally {
+      setContactSaving(false);
     }
   };
 
@@ -936,9 +1008,9 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                   <span className="hidden text-sm text-slate-200 sm:inline">
                     {(() => {
                       const contact =
-                        session.user.email ??
-                        formatUSPhoneForDisplay(session.user.phoneNumber) ??
-                        session.user.phoneNumber ??
+                        contactForm.email ||
+                        formatUSPhoneForDisplay(contactForm.phoneNumber) ||
+                        contactForm.phoneNumber ||
                         t("Member", "用户");
                       return (session.user.name ?? contact) + " · ";
                     })()}
@@ -1157,6 +1229,58 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                   {t("Stored locally in your browser. Reuse across every lender handshake - no repeated paperwork.", "资料仅保存在本地，再次沟通或匹配可直接复用，免去重复提交。")}
                 </p>
               </div>
+              <form
+                className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-4"
+                onSubmit={handleContactSubmit}
+              >
+                <div>
+                  <h4 className="text-sm font-semibold text-white">{t("Account contact details", "账号联系方式")}</h4>
+                  <p className="text-xs text-slate-400">
+                    {t("Keep an email or US phone on file for lender follow-ups.", "请保留邮箱或美国手机号，方便贷款机构联系。")}
+                  </p>
+                </div>
+                <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="email">
+                  {t("Email", "邮箱")}
+                  <input
+                    id="email"
+                    type="email"
+                    value={contactForm.email}
+                    onChange={handleContactFieldChange}
+                    placeholder="you@example.com"
+                    className="rounded-xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-xs text-slate-300" htmlFor="phoneNumber">
+                  {t("US phone number", "美国手机号")}
+                  <input
+                    id="phoneNumber"
+                    type="tel"
+                    value={contactForm.phoneNumber}
+                    onChange={handleContactFieldChange}
+                    placeholder="+1 (555) 555-1234"
+                    className="rounded-xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/30"
+                  />
+                </label>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="submit"
+                    disabled={contactSaving}
+                    className="self-end rounded-full bg-brand-primary px-4 py-2 text-xs font-semibold text-brand-dark transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {contactSaving ? t("Saving…", "保存中…") : t("Save contact", "保存联系方式")}
+                  </button>
+                  {contactError && (
+                    <p className="text-xs text-red-300">
+                      {contactError}
+                    </p>
+                  )}
+                  {contactStatus && (
+                    <p className="text-xs text-emerald-300">
+                      {contactStatus}
+                    </p>
+                  )}
+                </div>
+              </form>
               <div className="flex flex-col gap-4">
                 <InputField
                   id="name"
