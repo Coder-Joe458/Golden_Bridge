@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
+import { apiFetch } from "@/lib/api-client";
 import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
 
 type Locale = "en" | "zh";
@@ -86,7 +87,7 @@ export function BrokerProfileForm() {
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch("/api/broker/profile", {
+        const response = await apiFetch("/api/broker/profile", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
           cache: "no-store"
@@ -178,7 +179,7 @@ export function BrokerProfileForm() {
     }
 
     try {
-      const response = await fetch("/api/account/contact", {
+      const response = await apiFetch("/api/account/contact", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, phoneNumber })
@@ -264,7 +265,7 @@ export function BrokerProfileForm() {
     };
 
     try {
-      const response = await fetch("/api/broker/profile", {
+      const response = await apiFetch("/api/broker/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

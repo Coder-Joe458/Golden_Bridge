@@ -6,6 +6,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { loanDirectory } from "@/lib/loan-data";
 import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
+import { apiFetch } from "@/lib/api-client";
 import {
   buildFallbackResponse,
   buildSystemPrompt,
@@ -308,7 +309,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
 
     const loadSession = async () => {
       try {
-        const response = await fetch("/api/chat/session", {
+        const response = await apiFetch("/api/chat/session", {
           signal: controller.signal
         });
 
@@ -386,7 +387,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
       variant: refreshKey
     };
 
-    fetch("/api/recommendations", {
+    apiFetch("/api/recommendations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
@@ -460,7 +461,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setLoadingChat(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -509,7 +510,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const handleChatReset = async () => {
     if (session) {
       try {
-        const response = await fetch("/api/chat/session", {
+        const response = await apiFetch("/api/chat/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "reset" })
@@ -565,7 +566,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     }
 
     try {
-      const response = await fetch("/api/account/contact", {
+      const response = await apiFetch("/api/account/contact", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, phoneNumber })
@@ -660,7 +661,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setBrokerChatError(null);
 
     try {
-      const response = await fetch("/api/broker/conversations", {
+      const response = await apiFetch("/api/broker/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brokerProfileId: broker.id })
@@ -714,7 +715,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setBrokerChatError(null);
 
     try {
-      const response = await fetch(`/api/broker/conversations/${activeBrokerChat.conversationId}/messages`);
+      const response = await apiFetch(`/api/broker/conversations/${activeBrokerChat.conversationId}/messages`);
       const payload = (await response.json().catch(() => null)) as
         | {
             error?: string;
@@ -762,7 +763,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setBrokerChatInput("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/broker/conversations/${activeBrokerChat.conversationId}/messages`,
         {
           method: "POST",

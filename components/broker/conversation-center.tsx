@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { formatUSPhoneForDisplay } from "@/lib/contact-identifiers";
+import { apiFetch } from "@/lib/api-client";
 
 type ConversationSummary = {
   id: string;
@@ -49,8 +50,8 @@ type BrokerMessage = {
 
 type Locale = "en" | "zh";
 
-const fetchJson = async <T,>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
-  const response = await fetch(input, {
+const fetchJson = async <T,>(input: string, init?: RequestInit): Promise<T> => {
+  const response = await apiFetch(input, {
     ...init,
     headers: {
       "Content-Type": "application/json",

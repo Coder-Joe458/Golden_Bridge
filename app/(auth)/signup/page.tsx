@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { apiFetch } from "@/lib/api-client";
 
 const roles = [
   { value: "BORROWER", label: "Borrower (Consumer)" },
@@ -24,7 +25,7 @@ export default function SignUpPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await apiFetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, identifier, password, role })
