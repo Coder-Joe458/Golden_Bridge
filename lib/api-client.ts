@@ -5,29 +5,46 @@ const isAbsoluteUrl = (input: string): boolean => /^https?:\/\//i.test(input);
 
 const ensureLeadingSlash = (input: string): string => (input.startsWith("/") ? input : `/${input}`);
 
+const shouldUseAbsoluteBase = (): boolean => {
+  if (!normalizedBase) return false;
+  if (typeof window === "undefined") return true;
+  try {
+    const base = new URL(normalizedBase);
+    return base.host !== window.location.host;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Builds an absolute URL for API requests using the configured base.
- * Falls back to relative paths when no public base URL is provided.
+ * Falls back to relative paths when no public base URL is provided or it matches the current host.
  */
 export const buildApiUrl = (path: string): string => {
   if (isAbsoluteUrl(path)) return path;
   const normalizedPath = ensureLeadingSlash(path);
-  if (!normalizedBase) return normalizedPath;
+  if (!shouldUseAbsoluteBase()) return normalizedPath;
   return `${normalizedBase}${normalizedPath}`;
 };
 
 /**
- * Wrapper around fetch that respects NEXT_PUBLIC_API_BASE_URL for client-side calls.
+ * Wrapper around fetch that respects NEXT_PUBLIC_API_BASE_URL for client-side calls
+ * and ensures credentials are sent by default.
  */
 export const apiFetch: typeof fetch = (input, init) => {
-  const url = typeof input === "string" ? buildApiUrl(input) : input;
   if (typeof input !== "string") {
-    return fetch(input, init);
+    return fetch(input, {
+      ...init,
+      credentials: init?.credentials ?? "include"
+    });
   }
 
+  const url = buildApiUrl(input);
   const headers = init?.headers ? new Headers(init.headers as HeadersInit) : undefined;
+
   return fetch(url, {
     ...init,
-    headers
+    headers,
+    credentials: init?.credentials ?? "include"
   });
 };
