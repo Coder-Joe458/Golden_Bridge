@@ -7,13 +7,7 @@ const ensureLeadingSlash = (input: string): string => (input.startsWith("/") ? i
 
 const shouldUseAbsoluteBase = (): boolean => {
   if (!normalizedBase) return false;
-  if (typeof window === "undefined") return true;
-  try {
-    const base = new URL(normalizedBase);
-    return base.host !== window.location.host;
-  } catch {
-    return false;
-  }
+  return typeof window === "undefined";
 };
 
 /**
