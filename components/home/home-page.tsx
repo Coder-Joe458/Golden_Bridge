@@ -189,7 +189,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loadingChat, setLoadingChat] = useState<boolean>(false);
   const [questionIndex, setQuestionIndex] = useState<number>(1);
-  const [hasRecapped, setHasRecapped] = useState<boolean>(false);
   const [summary, setSummary] = useState<Summary>({});
   const [input, setInput] = useState<string>("");
   const [voiceStatus, setVoiceStatus] = useState<string>(t("Ready for voice capture...", "语音输入待命…"));
@@ -217,7 +216,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
   useEffect(() => {
     setMessages(createIntroMessages(locale));
     setQuestionIndex(1);
-    setHasRecapped(false);
     setSummary({});
     setRefreshKey((prev) => prev + 1);
     setVoiceStatus(locale === "zh" ? "语音输入待命…" : "Ready for voice capture...");
@@ -239,7 +237,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
         const profileSummary = summaryFromProfile(parsed);
         if (Object.keys(profileSummary).length > 0) {
           setSummary((prev) => ({ ...prev, ...profileSummary }));
-          setHasRecapped(false);
         }
       }
     } catch (error) {
@@ -299,7 +296,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
       setSessionId(null);
       setMessages(createIntroMessages(locale));
       setQuestionIndex(1);
-      setHasRecapped(false);
       setRecommendations([]);
       return;
     }
@@ -335,15 +331,12 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           setSummary(data.summary);
           const pointer = computeQuestionPointer(data.summary ?? {}, questions);
           setQuestionIndex(pointer >= questions.length ? questions.length : pointer);
-          const hasCompleted = pointer >= questions.length;
-          setHasRecapped(hasCompleted);
-          if (hasCompleted) {
+          if (pointer >= questions.length) {
             setRefreshKey((prev) => prev + 1);
           }
         } else {
           setSummary({});
           setQuestionIndex(1);
-          setHasRecapped(false);
         }
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
@@ -439,11 +432,17 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     const mergedSummary: Summary = { ...summary, ...info };
 
     const nextPointer = computeQuestionPointer(mergedSummary, questions);
-    const shouldRefresh = nextPointer === questions.length && !hasRecapped;
+    const summaryChanged =
+      summary.location !== mergedSummary.location ||
+      summary.timeline !== mergedSummary.timeline ||
+      summary.priority !== mergedSummary.priority ||
+      summary.credit !== mergedSummary.credit ||
+      summary.amount !== mergedSummary.amount;
+    const reachedCompletion = nextPointer >= questions.length;
+    const shouldRefresh = reachedCompletion && summaryChanged;
 
     setSummary(mergedSummary);
-    setQuestionIndex(nextPointer >= questions.length ? questions.length : nextPointer);
-    setHasRecapped(nextPointer >= questions.length);
+    setQuestionIndex(reachedCompletion ? questions.length : nextPointer);
     if (shouldRefresh) {
       setRefreshKey((prev) => prev + 1);
     }
@@ -527,7 +526,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
     setMessages(createIntroMessages(locale));
     setSummary({});
     setQuestionIndex(1);
-    setHasRecapped(false);
     setRefreshKey((prev) => prev + 1);
     setInput("");
   };
@@ -561,6 +559,12 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
 
     if (!email && !phoneNumber) {
       setContactError(t("Please keep at least one contact method.", "请至少保留一种联系方式。"));
+      setContactSaving(false);
+      return;
+    }
+
+    if (!session?.user?.id) {
+      setContactError(t("Sign in to update your contact details.", "请先登录再更新联系方式。"));
       setContactSaving(false);
       return;
     }
@@ -616,7 +620,6 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
 
     const profileSummary = summaryFromProfile(profile);
     setSummary((prev) => ({ ...prev, ...profileSummary }));
-    setHasRecapped(true);
     setRefreshKey((prev) => prev + 1);
     displayStatus(setProfileStatus, t("Profile saved locally.", "资料已保存在本地。"));
   };
