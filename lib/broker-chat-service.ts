@@ -5,6 +5,7 @@ import {
   UserRole
 } from "@prisma/client";
 import { prisma } from "./prisma";
+import { maskBorrowerContact } from "./privacy";
 
 const conversationInclude = {
   borrower: {
@@ -103,10 +104,12 @@ export async function listConversationsForUser(userId: string) {
 
   return conversations.map((conversation) => {
     const lastMessage = conversation.messages[0] ?? null;
+    const maskedBorrower =
+      role?.role === UserRole.BROKER ? maskBorrowerContact(conversation.borrower) : conversation.borrower;
     return {
       id: conversation.id,
       status: conversation.status,
-      borrower: conversation.borrower,
+      borrower: maskedBorrower,
       broker: conversation.broker,
       lastMessage: lastMessage
         ? {
@@ -145,7 +148,10 @@ export async function getConversationWithMessages(conversationId: string, userId
   const viewerRole = conversation.borrowerId === userId ? UserRole.BORROWER : UserRole.BROKER;
 
   return {
-    conversation,
+    conversation:
+      viewerRole === UserRole.BROKER
+        ? { ...conversation, borrower: maskBorrowerContact(conversation.borrower) }
+        : conversation,
     messages,
     viewerRole
   };
