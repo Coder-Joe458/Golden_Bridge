@@ -25,3 +25,4 @@ prisma/dev.db-journal
 # others
 .idea
 .vscode
+ios/GoldenBridgeMobile.xcodeproj/
