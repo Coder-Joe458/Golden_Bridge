@@ -1051,13 +1051,29 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                       }
                     })()}
                   </span>
-                  {(session.user.role === "BROKER" || session.user.role === "ADMIN") && (
+                  {session.user.role === "BROKER" && (
                     <Link
                       href="/dashboard/broker"
                       className="rounded-full border border-brand-primary/40 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:-translate-y-0.5 hover:bg-brand-primary/10"
                     >
                       Broker dashboard
                     </Link>
+                  )}
+                  {session.user.role === "ADMIN" && (
+                    <div className="flex gap-2">
+                      <Link
+                        href="/dashboard/admin"
+                        className="rounded-full border border-brand-primary/40 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:-translate-y-0.5 hover:bg-brand-primary/10"
+                      >
+                        Admin dashboard
+                      </Link>
+                      <Link
+                        href="/dashboard/broker"
+                        className="rounded-full border border-white/15 px-4 py-2 text-sm text-white transition hover:border-brand-primary/60 hover:text-brand-primary"
+                      >
+                        Broker tools
+                      </Link>
+                    </div>
                   )}
                   <button
                     type="button"
