@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { AdminDealCasesManager } from "@/components/admin/deal-cases-manager";
 import { AdminBrokersManager } from "@/components/admin/brokers-manager";
-import { AdminPasswordForm } from "@/components/admin/password-form";
+import { AdminHeader } from "@/components/admin/header";
 
 const tabs = [
   { id: "cases", label: "Deal Cases" },
@@ -44,13 +44,8 @@ export function AdminDashboard() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-white">{t("Admin Control Center", "后台控制中心")}</h1>
-          <p className="text-sm text-slate-400">
-            {t("Manage deal cases and partner brokers securely.", "安全维护成交案例及合作经纪人信息。")}
-          </p>
-        </div>
+      <AdminHeader locale={locale} />
+      <section className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-slate-900/70 p-4 shadow-2xl shadow-black/20 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-2 md:items-end">
           <div className="flex gap-2 rounded-full border border-white/10 bg-slate-900/70 p-1">
             {(["en", "zh"] as Locale[]).map((code) => (
@@ -87,9 +82,7 @@ export function AdminDashboard() {
             ))}
           </nav>
         </div>
-      </header>
-
-      <AdminPasswordForm locale={locale} />
+      </section>
 
       <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20">
         {activeTab === "cases" ? (
