@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+type Locale = "en" | "zh";
+
 type BrokerProfile = {
   id: string;
   company: string | null;
@@ -197,7 +199,13 @@ async function deleteBroker(userId: string) {
   return response.json();
 }
 
-export function AdminBrokersManager() {
+type AdminBrokersManagerProps = {
+  locale: Locale;
+};
+
+export function AdminBrokersManager({ locale }: AdminBrokersManagerProps) {
+  const t = (en: string, zh: string) => (locale === "zh" ? zh : en);
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", "brokers"],
     queryFn: fetchBrokers
@@ -242,7 +250,7 @@ export function AdminBrokersManager() {
       setActiveBroker(null);
       setFormState(null);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Failed to update broker profile");
+      setFormError(err instanceof Error ? err.message : t("Failed to update broker profile", "更新经纪人信息失败"));
     }
   };
 
@@ -259,7 +267,7 @@ export function AdminBrokersManager() {
     if (!createForm) return;
     setCreateError(null);
     if (createForm.password !== createForm.confirmPassword) {
-      setCreateError("Passwords do not match");
+      setCreateError(t("Passwords do not match", "两次密码输入不一致"));
       return;
     }
 
@@ -267,13 +275,13 @@ export function AdminBrokersManager() {
       await createMutation.mutateAsync(buildCreatePayload(createForm));
       setCreateForm(null);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Failed to create broker");
+      setCreateError(err instanceof Error ? err.message : t("Failed to create broker", "创建经纪人失败"));
     }
   };
 
   const handleDelete = async (broker: AdminBroker) => {
-    const label = broker.name ?? broker.email ?? "this broker";
-    if (!window.confirm(`确定要删除 ${label} 吗？该操作不可恢复。`)) {
+    const label = broker.name ?? broker.email ?? t("this broker", "该经纪人");
+    if (!window.confirm(t(`Delete ${label}? This cannot be undone.`, `确定删除 ${label} 吗？此操作不可恢复。`))) {
       return;
     }
     try {
@@ -283,7 +291,7 @@ export function AdminBrokersManager() {
         setFormState(null);
       }
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Failed to delete broker");
+      window.alert(err instanceof Error ? err.message : t("Failed to delete broker", "删除经纪人失败"));
     }
   };
 
@@ -299,8 +307,8 @@ export function AdminBrokersManager() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-white">Broker Directory</h2>
-          <p className="text-sm text-slate-400">Manage合作伙伴账号及档案信息。</p>
+          <h2 className="text-xl font-semibold text-white">{t("Broker Directory", "合作经纪人目录")}</h2>
+          <p className="text-sm text-slate-400">{t("Manage partner accounts and profiles.", "维护合作伙伴账号与档案。")}</p>
         </div>
         <button
           type="button"
@@ -308,28 +316,30 @@ export function AdminBrokersManager() {
           className="rounded-full bg-brand-primary px-4 py-2 text-sm font-medium text-brand-dark shadow-lg shadow-brand-primary/40 transition hover:-translate-y-0.5 disabled:opacity-60"
           disabled={createMutation.isPending}
         >
-          新建贷款机构
+          {t("Create Broker", "新建贷款机构")}
         </button>
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 text-center text-sm text-slate-300">Loading brokers...</div>
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 text-center text-sm text-slate-300">
+          {t("Loading brokers...", "经纪人列表加载中...")}
+        </div>
       ) : error ? (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error.message}</div>
       ) : !data || data.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 p-6 text-sm text-slate-300">
-          暂无经纪人账号，可以通过“新建贷款机构”快速冷启动一批资料。
+          {t("No brokers yet. Use the button above to create a few seed partners.", "当前暂无经纪人，可通过上方按钮新建一些初始账号。")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/10">
           <table className="min-w-full divide-y divide-white/10 text-sm text-slate-200">
             <thead className="bg-slate-900/70 text-xs uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">Email</th>
-                <th className="px-4 py-3 text-left">Company</th>
-                <th className="px-4 py-3 text-left">States</th>
-                <th className="px-4 py-3 text-left">Updated</th>
+                <th className="px-4 py-3 text-left">{t("Name", "姓名")}</th>
+                <th className="px-4 py-3 text-left">{t("Email", "邮箱")}</th>
+                <th className="px-4 py-3 text-left">{t("Company", "机构")}</th>
+                <th className="px-4 py-3 text-left">{t("States", "执照州")}</th>
+                <th className="px-4 py-3 text-left">{t("Updated", "更新时间")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -343,7 +353,7 @@ export function AdminBrokersManager() {
                     {broker.profile?.licenseStates?.length ? broker.profile.licenseStates.join(", ") : "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-400">
-                    {broker.profile ? new Date(broker.profile.updatedAt).toLocaleString() : "Never"}
+                    {broker.profile ? new Date(broker.profile.updatedAt).toLocaleString() : t("Never", "从未更新")}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
@@ -352,7 +362,7 @@ export function AdminBrokersManager() {
                         onClick={() => handleSelectBroker(broker)}
                         className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-200 transition hover:border-brand-primary/60 hover:text-white"
                       >
-                        编辑
+                        {t("Edit", "编辑")}
                       </button>
                       <button
                         type="button"
@@ -360,7 +370,7 @@ export function AdminBrokersManager() {
                         className="rounded-full border border-red-500/40 px-3 py-1 text-xs text-red-200 transition hover:bg-red-500/10"
                         disabled={deleteMutation.isPending}
                       >
-                        删除
+                        {t("Delete", "删除")}
                       </button>
                     </div>
                   </td>
@@ -373,10 +383,10 @@ export function AdminBrokersManager() {
 
       {createForm && (
         <form onSubmit={handleSubmitCreate} className="space-y-6 rounded-2xl border border-white/10 bg-slate-900/70 p-6">
-          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-white">创建新贷款机构账号</h3>
-              <p className="text-xs text-slate-400">填写账号信息和初始档案，稍后可以继续在后台编辑。</p>
+              <h3 className="text-lg font-semibold text-white">{t("Create Broker Account", "新建贷款机构账号")}</h3>
+              <p className="text-xs text-slate-400">{t("Fill account basics and initial profile.", "填写账号信息及初始档案。")}</p>
             </div>
             <button
               type="button"
@@ -387,34 +397,40 @@ export function AdminBrokersManager() {
               className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 transition hover:border-white/30 hover:text-white"
               disabled={createMutation.isPending}
             >
-              取消
+              {t("Cancel", "取消")}
             </button>
           </div>
 
           {createError && <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{createError}</p>}
 
           <div className="grid gap-4 md:grid-cols-2">
-            <TextField label="Name" value={createForm.name} onChange={(value) => setCreateForm((prev) => prev ? { ...prev, name: value } : prev)} />
+            <TextField label={t("Name", "姓名")}
+              value={createForm.name}
+              onChange={(value) => setCreateForm((prev) => (prev ? { ...prev, name: value } : prev))}
+              required
+            />
             <TextField
-              label="Email"
+              label={t("Email", "邮箱")}
               type="email"
               autoComplete="email"
               value={createForm.email}
-              onChange={(value) => setCreateForm((prev) => prev ? { ...prev, email: value } : prev)}
+              onChange={(value) => setCreateForm((prev) => (prev ? { ...prev, email: value } : prev))}
+              required
             />
             <TextField
-              label="Phone Number"
+              label={t("Phone Number", "手机号")}
               autoComplete="tel"
               value={createForm.phoneNumber}
-              onChange={(value) => setCreateForm((prev) => prev ? { ...prev, phoneNumber: value } : prev)}
+              onChange={(value) => setCreateForm((prev) => (prev ? { ...prev, phoneNumber: value } : prev))}
             />
             <div className="flex items-end gap-2">
               <TextField
-                label="Temporary Password"
+                label={t("Temporary Password", "临时密码")}
                 type="password"
                 autoComplete="new-password"
                 value={createForm.password}
-                onChange={(value) => setCreateForm((prev) => prev ? { ...prev, password: value } : prev)}
+                onChange={(value) => setCreateForm((prev) => (prev ? { ...prev, password: value } : prev))}
+                required
               />
               <button
                 type="button"
@@ -432,19 +448,21 @@ export function AdminBrokersManager() {
                 }}
                 className="h-10 rounded-full border border-white/10 px-3 py-1 text-xs text-slate-200 transition hover:border-brand-primary/60 hover:text-white"
               >
-                生成密码
+                {t("Generate", "生成")}
               </button>
             </div>
             <TextField
-              label="Confirm Password"
+              label={t("Confirm Password", "确认密码")}
               type="password"
               autoComplete="new-password"
               value={createForm.confirmPassword}
-              onChange={(value) => setCreateForm((prev) => prev ? { ...prev, confirmPassword: value } : prev)}
+              onChange={(value) => setCreateForm((prev) => (prev ? { ...prev, confirmPassword: value } : prev))}
+              required
             />
           </div>
 
           <BrokerProfileFields
+            locale={locale}
             profile={createForm.profile}
             onChange={(profile) => setCreateForm((prev) => (prev ? { ...prev, profile } : prev))}
           />
@@ -459,14 +477,14 @@ export function AdminBrokersManager() {
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
               disabled={createMutation.isPending}
             >
-              取消
+              {t("Cancel", "取消")}
             </button>
             <button
               type="submit"
               className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-brand-dark shadow-lg shadow-brand-primary/40 transition hover:-translate-y-0.5 disabled:opacity-60"
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? "创建中..." : "创建贷款机构"}
+              {createMutation.isPending ? t("Creating...", "创建中...") : t("Create Broker", "创建账户")}
             </button>
           </div>
         </form>
@@ -484,7 +502,7 @@ export function AdminBrokersManager() {
 
           {formError && <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{formError}</p>}
 
-          <BrokerProfileFields profile={formState} onChange={setFormState} />
+          <BrokerProfileFields profile={formState} locale={locale} onChange={(profile) => setFormState(profile)} />
 
           <div className="flex justify-end gap-3">
             <button
@@ -497,14 +515,14 @@ export function AdminBrokersManager() {
               className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
               disabled={updateMutation.isPending}
             >
-              取消
+              {t("Cancel", "取消")}
             </button>
             <button
               type="submit"
               className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-brand-dark shadow-lg shadow-brand-primary/40 transition hover:-translate-y-0.5 disabled:opacity-60"
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? "保存中..." : "保存修改"}
+              {updateMutation.isPending ? t("Saving...", "保存中...") : t("Save changes", "保存修改")}
             </button>
           </div>
         </form>
@@ -520,9 +538,10 @@ type TextFieldProps = {
   placeholder?: string;
   type?: string;
   autoComplete?: string;
+  required?: boolean;
 };
 
-function TextField({ label, value, onChange, placeholder, type = "text", autoComplete }: TextFieldProps) {
+function TextField({ label, value, onChange, placeholder, type = "text", autoComplete, required }: TextFieldProps) {
   return (
     <label className="flex flex-col gap-2 text-sm text-slate-300">
       {label}
@@ -532,6 +551,7 @@ function TextField({ label, value, onChange, placeholder, type = "text", autoCom
         placeholder={placeholder}
         type={type}
         autoComplete={autoComplete}
+        required={required}
         className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 focus:border-brand-primary focus:outline-none"
       />
     </label>
@@ -560,36 +580,63 @@ function TextAreaField({ label, value, onChange, rows = 4 }: TextAreaFieldProps)
 }
 
 type BrokerProfileFieldsProps = {
+  locale: Locale;
   profile: BrokerFormState;
   onChange: (profile: BrokerFormState) => void;
 };
 
-function BrokerProfileFields({ profile, onChange }: BrokerProfileFieldsProps) {
+function BrokerProfileFields({ locale, profile, onChange }: BrokerProfileFieldsProps) {
+  const t = (en: string, zh: string) => (locale === "zh" ? zh : en);
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <TextField label="Company" value={profile.company} onChange={(value) => onChange({ ...profile, company: value })} />
-      <TextField label="Headline" value={profile.headline} onChange={(value) => onChange({ ...profile, headline: value })} />
-      <TextAreaField label="Bio" value={profile.bio} rows={4} onChange={(value) => onChange({ ...profile, bio: value })} />
+      <TextField label={t("Company", "机构名称")} value={profile.company} onChange={(value) => onChange({ ...profile, company: value })} />
+      <TextField label={t("Headline", "一句话介绍")} value={profile.headline} onChange={(value) => onChange({ ...profile, headline: value })} />
+      <TextAreaField label={t("Bio", "详细简介")}
+        value={profile.bio}
+        onChange={(value) => onChange({ ...profile, bio: value })}
+        rows={4}
+      />
       <TextField
-        label="License States (comma separated)"
+        label={t("License States (comma separated)", "执照州（逗号分隔）")}
         value={profile.licenseStates}
         onChange={(value) => onChange({ ...profile, licenseStates: value })}
         placeholder="CA, TX, WA"
       />
-      <TextField label="Years Experience" value={profile.yearsExperience} onChange={(value) => onChange({ ...profile, yearsExperience: value })} />
-      <TextField label="Website" value={profile.website} onChange={(value) => onChange({ ...profile, website: value })} />
-      <TextField label="Min Rate" value={profile.minRate} onChange={(value) => onChange({ ...profile, minRate: value })} placeholder="5.75" />
-      <TextField label="Max Rate" value={profile.maxRate} onChange={(value) => onChange({ ...profile, maxRate: value })} placeholder="6.40" />
+      <TextField label={t("Years Experience", "从业年限")} value={profile.yearsExperience} onChange={(value) => onChange({ ...profile, yearsExperience: value })} />
+      <TextField label={t("Website", "官网地址")} value={profile.website} onChange={(value) => onChange({ ...profile, website: value })} />
+      <TextField label={t("Minimum Rate", "最低利率")}
+        value={profile.minRate}
+        onChange={(value) => onChange({ ...profile, minRate: value })}
+        placeholder="5.75"
+      />
+      <TextField label={t("Maximum Rate", "最高利率")}
+        value={profile.maxRate}
+        onChange={(value) => onChange({ ...profile, maxRate: value })}
+        placeholder="6.40"
+      />
       <TextField
-        label="Loan Programs (comma separated)"
+        label={t("Loan Programs (comma separated)", "擅长项目（逗号分隔）")}
         value={profile.loanPrograms}
         onChange={(value) => onChange({ ...profile, loanPrograms: value })}
         placeholder="Jumbo, DSCR"
       />
-      <TextField label="Min Credit Score" value={profile.minCreditScore} onChange={(value) => onChange({ ...profile, minCreditScore: value })} />
-      <TextField label="Max LTV" value={profile.maxLoanToValue} onChange={(value) => onChange({ ...profile, maxLoanToValue: value })} />
-      <TextAreaField label="Notes" value={profile.notes} rows={3} onChange={(value) => onChange({ ...profile, notes: value })} />
-      <TextField label="Closing Speed Days" value={profile.closingSpeedDays} onChange={(value) => onChange({ ...profile, closingSpeedDays: value })} />
+      <TextField label={t("Minimum Credit Score", "最低信用分")}
+        value={profile.minCreditScore}
+        onChange={(value) => onChange({ ...profile, minCreditScore: value })}
+      />
+      <TextField label={t("Maximum LTV", "最高成数")}
+        value={profile.maxLoanToValue}
+        onChange={(value) => onChange({ ...profile, maxLoanToValue: value })}
+      />
+      <TextAreaField label={t("Notes", "备注说明")}
+        value={profile.notes}
+        rows={3}
+        onChange={(value) => onChange({ ...profile, notes: value })}
+      />
+      <TextField label={t("Closing Speed (days)", "预计放款天数")}
+        value={profile.closingSpeedDays}
+        onChange={(value) => onChange({ ...profile, closingSpeedDays: value })}
+      />
     </div>
   );
 }
