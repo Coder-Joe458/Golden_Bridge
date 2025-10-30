@@ -97,3 +97,41 @@ struct ChatConversation {
   var summary: Summary?
   var messages: [ChatMessage]
 }
+
+struct LocalizedCopy: Codable {
+  let en: String?
+  let zh: String?
+
+  func text(for locale: String) -> String {
+    if locale.lowercased().hasPrefix("zh") {
+      return (zh?.isEmpty == false ? zh : en) ?? ""
+    }
+    return (en?.isEmpty == false ? en : zh) ?? ""
+  }
+}
+
+struct DealCaseMedia: Codable, Identifiable {
+  var id: String { src }
+  let src: String
+  let alt: LocalizedCopy
+
+  var url: URL? { URL(string: src) }
+}
+
+struct DealCase: Codable, Identifiable {
+  let id: String
+  let city: String
+  let state: String
+  let price: LocalizedCopy
+  let timeline: LocalizedCopy
+  let borrowerType: LocalizedCopy
+  let product: LocalizedCopy
+  let highlight: LocalizedCopy
+  let heroImage: DealCaseMedia
+  let gallery: [DealCaseMedia]
+}
+
+struct DealCasePayload: Codable {
+  let cases: [DealCase]
+  let total: Int
+}

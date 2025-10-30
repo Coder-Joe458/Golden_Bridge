@@ -17,6 +17,7 @@ import {
   type Locale,
   type Summary
 } from "@/lib/chat/logic";
+import { DealsShowcase } from "@/components/home/deals-showcase";
 
 type Message = {
   id: string;
@@ -112,6 +113,20 @@ const createIntroMessages = (locale: Locale): Message[] => {
       content: questions[0]
     }
   ];
+};
+
+const heatmapMetrics = ["Rate", "Speed", "Documentation", "Broker Fit", "Success", "Closing Confidence"] as const;
+
+const computeHeatmapScore = (label: string): number => {
+  let hash = 0;
+  for (let index = 0; index < label.length; index += 1) {
+    hash = (hash << 5) - hash + label.charCodeAt(index);
+    hash |= 0;
+  }
+  const base = 85;
+  const range = 15;
+  const normalized = Math.abs(hash) % range;
+  return base + normalized;
 };
 
 function translateText(text: string): string {
@@ -300,14 +315,12 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
       return;
     }
 
-    const controller = new AbortController();
+    let cancelled = false;
     setLoadingChat(true);
 
     const loadSession = async () => {
       try {
-        const response = await apiFetch("/api/chat/session", {
-          signal: controller.signal
-        });
+        const response = await apiFetch("/api/chat/session");
 
         if (!response.ok) {
           throw new Error("Failed to load chat session");
@@ -318,6 +331,8 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           summary?: Summary | null;
           messages?: Message[];
         };
+
+        if (cancelled) return;
 
         setSessionId(data.sessionId ?? null);
 
@@ -339,24 +354,25 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           setQuestionIndex(1);
         }
       } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          console.warn("Failed to load chat session", error);
-          setMessages(createIntroMessages(locale));
-        }
+        if (cancelled) return;
+        console.warn("Failed to load chat session", error);
+        setMessages(createIntroMessages(locale));
       } finally {
-        setLoadingChat(false);
+        if (!cancelled) {
+          setLoadingChat(false);
+        }
       }
     };
 
-    loadSession();
+    void loadSession();
 
     return () => {
-      controller.abort();
+      cancelled = true;
     };
   }, [session?.user?.id, locale, questions]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
     setRecommendationsLoading(true);
     setRecommendationError(null);
 
@@ -380,34 +396,38 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
       variant: refreshKey
     };
 
-    apiFetch("/api/recommendations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
-    })
-      .then(async (response) => {
+    const fetchRecommendations = async () => {
+      try {
+        const response = await apiFetch("/api/recommendations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+
         if (!response.ok) {
           const body = await response.json().catch(() => ({ error: "Unable to fetch recommendations" }));
           throw new Error(body.error ?? "Unable to fetch recommendations");
         }
-        return response.json() as Promise<{ recommendations: RecommendedBroker[] }>;
-      })
-      .then((data) => {
+
+        const data = (await response.json()) as { recommendations: RecommendedBroker[] };
+        if (cancelled) return;
         setRecommendations(data.recommendations ?? []);
-      })
-      .catch((error) => {
-        if (error.name === "AbortError") return;
+      } catch (error) {
+        if (cancelled) return;
         console.error("Recommendation fetch error", error);
-        setRecommendationError(error.message ?? t("Unable to fetch recommendations.", "暂时无法获取推荐，请稍后再试。"));
+        setRecommendationError(error instanceof Error ? error.message : t("Unable to fetch recommendations.", "暂时无法获取推荐，请稍后再试。"));
         setRecommendations([]);
-      })
-      .finally(() => {
-        setRecommendationsLoading(false);
-      });
+      } finally {
+        if (!cancelled) {
+          setRecommendationsLoading(false);
+        }
+      }
+    };
+
+    void fetchRecommendations();
 
     return () => {
-      controller.abort();
+      cancelled = true;
     };
   }, [summary.location, summary.priority, summary.credit, summary.amount, profile.city, profile.priority, profile.credit, profile.amount, refreshKey, locale, t]);
 
@@ -942,6 +962,8 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
           </div>
         </div>
 
+        <DealsShowcase locale={locale} t={t} className="mt-6 md:hidden" />
+
         <form onSubmit={handleChatSubmit} className="border-t border-white/10 bg-slate-950 px-4 py-3">
           <div className="flex items-end gap-2">
             <textarea
@@ -1114,20 +1136,13 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                   <span>Real-time</span>
                 </div>
                 <div className="mt-6 grid grid-cols-3 gap-3 text-xs">
-                  {[
-                    "Rate",
-                    "Speed",
-                    "Documentation",
-                    "Broker Fit",
-                    "Success",
-                    "Closing Confidence"
-                  ].map((label) => (
+                  {heatmapMetrics.map((label) => (
                     <div
                       key={label}
                       className="rounded-xl border border-white/5 bg-slate-900/60 p-4 text-center text-slate-300"
                     >
                       <p className="text-3xl font-semibold text-brand-primary">
-                        {Math.floor(Math.random() * 15) + 85}%
+                        {computeHeatmapScore(label)}%
                       </p>
                       <p className="mt-2 text-[11px] uppercase tracking-widest">{label}</p>
                     </div>
@@ -1473,6 +1488,10 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
               {t("Refresh the lineup", "刷新推荐")}
             </button>
           </div>
+        </section>
+
+        <section className="hidden space-y-8 md:block">
+          <DealsShowcase locale={locale} t={t} />
         </section>
 
         <section id="network" className="space-y-6">

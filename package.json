@@ -9,9 +9,12 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:deal-case": "node scripts/seed-deal-case.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.920.0",
+    "@aws-sdk/s3-request-presigner": "^3.920.0",
     "@prisma/client": "^5.7.0",
     "@tanstack/react-query": "^5.17.12",
     "bcryptjs": "^2.4.3",

@@ -3,6 +3,7 @@ import SwiftUI
 enum DashboardTab: Hashable {
   case chat
   case recommendations
+  case deals
 }
 
 struct ContentView: View {
@@ -87,10 +88,17 @@ private struct DashboardView: View {
           Label("推荐", systemImage: "star.fill")
         }
         .tag(DashboardTab.recommendations)
+
+      DealsView()
+        .tabItem {
+          Label("案例", systemImage: "building.2.crop.circle")
+        }
+        .tag(DashboardTab.deals)
     }
     .task(id: appState.session?.user.id) {
       await appState.loadChat(force: true)
       await appState.loadRecommendations(force: true)
+      await appState.loadDealCases(force: true)
     }
   }
 }
@@ -343,6 +351,304 @@ private struct RecommendationRow: View {
       }
     }
     .padding(.vertical, 6)
+  }
+}
+
+private struct DealsView: View {
+  @EnvironmentObject private var appState: AppState
+  @State private var selectedDeal: DealCase?
+
+  private var localeCode: String {
+    if #available(iOS 16, *) {
+      return Locale.current.language.languageCode?.identifier.lowercased().hasPrefix("zh") == true ? "zh" : "en"
+    } else {
+      return Locale.current.languageCode?.lowercased().hasPrefix("zh") == true ? "zh" : "en"
+    }
+  }
+
+  private func localized(_ copy: LocalizedCopy) -> String {
+    copy.text(for: localeCode)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      dealsHeader
+      dealsContent
+      refreshButton
+    }
+    .padding()
+    .sheet(item: $selectedDeal) { deal in
+      DealDetailView(deal: deal, localeCode: localeCode, onClose: { selectedDeal = nil })
+    }
+  }
+
+  private var dealsHeader: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text("真实成交案例")
+        .font(.title3)
+        .bold()
+      Text(localeCode == "zh" ? "看看最近我们如何帮助客户完成融资。" : "See how borrowers closed with Golden Bridge.")
+        .font(.footnote)
+        .foregroundColor(.secondary)
+    }
+  }
+
+  @ViewBuilder
+  private var dealsContent: some View {
+    if appState.dealCasesLoading && appState.dealCases.isEmpty {
+      ProgressView("正在加载案例…")
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 24)
+    } else if let error = appState.dealCasesError, appState.dealCases.isEmpty {
+      VStack(spacing: 12) {
+        Text(error.localizedDescription)
+          .multilineTextAlignment(.center)
+          .foregroundColor(.red)
+        Button("重新请求") {
+          Task { await appState.loadDealCases(force: true) }
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .center)
+      .padding(.top, 24)
+    } else if appState.dealCases.isEmpty {
+      Text(localeCode == "zh" ? "暂时没有可展示的案例，请稍后再试。" : "No deal cases to display yet. Check back soon.")
+        .foregroundColor(.secondary)
+        .padding(.top, 24)
+    } else {
+      ScrollView {
+        LazyVStack(spacing: 16) {
+          ForEach(appState.dealCases) { deal in
+            DealCardView(
+              deal: deal,
+              localeCode: localeCode,
+              onTap: { selectedDeal = deal }
+            )
+          }
+        }
+        .padding(.vertical, 4)
+      }
+    }
+  }
+
+  private var refreshButton: some View {
+    Button {
+      Task { await appState.loadDealCases(force: true) }
+    } label: {
+      HStack {
+        Image(systemName: "arrow.clockwise")
+        Text(appState.dealCases.isEmpty ? (localeCode == "zh" ? "获取案例" : "Fetch Cases") : (localeCode == "zh" ? "刷新案例" : "Refresh Cases"))
+      }
+      .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.borderedProminent)
+    .disabled(appState.dealCasesLoading)
+  }
+}
+
+private struct DealCardView: View {
+  let deal: DealCase
+  let localeCode: String
+  let onTap: () -> Void
+
+  private func localized(_ copy: LocalizedCopy) -> String {
+    copy.text(for: localeCode)
+  }
+
+  var body: some View {
+    Button(action: onTap) {
+      VStack(alignment: .leading, spacing: 12) {
+        ZStack(alignment: .bottomLeading) {
+          AsyncImage(url: deal.heroImage.url) { phase in
+            switch phase {
+            case let .success(image):
+              image
+                .resizable()
+                .scaledToFill()
+            case .empty:
+              Color.gray.opacity(0.2)
+                .overlay(ProgressView().progressViewStyle(.circular))
+            case .failure:
+              Color.gray.opacity(0.2)
+                .overlay(
+                  Image(systemName: "photo")
+                    .font(.largeTitle)
+                    .foregroundColor(.gray)
+                )
+            @unknown default:
+              Color.gray.opacity(0.2)
+            }
+          }
+          .frame(height: 180)
+          .clipped()
+          .cornerRadius(16)
+
+          LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .bottom, endPoint: .center)
+            .frame(height: 80)
+            .cornerRadius(16)
+
+          VStack(alignment: .leading, spacing: 4) {
+            Text("\(deal.city), \(deal.state)")
+              .font(.headline)
+              .foregroundColor(.white)
+            Text(deal.id)
+              .font(.caption)
+              .foregroundColor(.white.opacity(0.8))
+          }
+          .padding(12)
+        }
+
+        VStack(alignment: .leading, spacing: 8) {
+          Text(localized(deal.price))
+            .font(.title3)
+            .fontWeight(.semibold)
+
+          Text(localized(deal.timeline))
+            .font(.caption)
+            .foregroundColor(.secondary)
+
+          Text(localized(deal.borrowerType))
+            .font(.subheadline)
+
+          VStack(alignment: .leading, spacing: 4) {
+            Label(localized(deal.product), systemImage: "building.columns")
+              .font(.caption)
+            Label(localized(deal.highlight), systemImage: "sparkles")
+              .font(.caption)
+          }
+          .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding()
+      .background(
+        RoundedRectangle(cornerRadius: 20)
+          .fill(Color(.systemBackground).opacity(0.9))
+          .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
+      )
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+private struct DealDetailView: View {
+  let deal: DealCase
+  let localeCode: String
+  let onClose: () -> Void
+
+  private func localized(_ copy: LocalizedCopy) -> String {
+    copy.text(for: localeCode)
+  }
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
+          AsyncImage(url: deal.heroImage.url) { phase in
+            switch phase {
+            case let .success(image):
+              image
+                .resizable()
+                .scaledToFill()
+            case .empty:
+              ZStack {
+                Color.gray.opacity(0.2)
+                ProgressView()
+              }
+            case .failure:
+              ZStack {
+                Color.gray.opacity(0.2)
+                Image(systemName: "photo")
+                  .font(.largeTitle)
+                  .foregroundColor(.gray)
+              }
+            @unknown default:
+              Color.gray.opacity(0.2)
+            }
+          }
+          .frame(height: 240)
+          .clipped()
+          .cornerRadius(20)
+
+          VStack(alignment: .leading, spacing: 12) {
+            Text("\(deal.city), \(deal.state)")
+              .font(.title2)
+              .fontWeight(.bold)
+            Text(localized(deal.price))
+              .font(.headline)
+            Text(localized(deal.timeline))
+              .font(.subheadline)
+              .foregroundColor(.secondary)
+
+            Divider()
+
+            DetailRow(title: localeCode == "zh" ? "客户画像" : "Borrower Profile", value: localized(deal.borrowerType))
+            DetailRow(title: localeCode == "zh" ? "贷款方案" : "Loan Program", value: localized(deal.product))
+            DetailRow(title: localeCode == "zh" ? "成交亮点" : "Result Highlight", value: localized(deal.highlight))
+          }
+
+          if !deal.gallery.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+              Text(localeCode == "zh" ? "更多现场" : "Gallery")
+                .font(.headline)
+              ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                  ForEach(deal.gallery) { media in
+                    AsyncImage(url: media.url) { phase in
+                      switch phase {
+                      case let .success(image):
+                        image
+                          .resizable()
+                          .scaledToFill()
+                      case .empty:
+                        ZStack {
+                          Color.gray.opacity(0.2)
+                          ProgressView()
+                        }
+                      case .failure:
+                        ZStack {
+                          Color.gray.opacity(0.2)
+                          Image(systemName: "photo")
+                            .foregroundColor(.gray)
+                        }
+                      @unknown default:
+                        Color.gray.opacity(0.2)
+                      }
+                    }
+                    .frame(width: 180, height: 120)
+                    .clipped()
+                    .cornerRadius(14)
+                  }
+                }
+                .padding(.vertical, 4)
+              }
+            }
+          }
+        }
+        .padding()
+      }
+      .navigationTitle(deal.id)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button(localeCode == "zh" ? "关闭" : "Close", action: onClose)
+        }
+      }
+    }
+  }
+
+  private struct DetailRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(title)
+          .font(.caption)
+          .foregroundColor(.secondary)
+        Text(value)
+          .font(.body)
+      }
+    }
   }
 }
 

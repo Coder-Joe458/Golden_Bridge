@@ -194,6 +194,42 @@ model BrokerMessage {
   @@index([conversationId, createdAt])
 }
 
+model DealCase {
+  id              String   @id @default(cuid())
+  caseCode        String   @unique
+  city            String
+  state           String
+  priceDisplayEn  String
+  priceDisplayZh  String
+  timelineEn      String
+  timelineZh      String
+  borrowerTypeEn  String
+  borrowerTypeZh  String
+  productEn       String
+  productZh       String
+  highlightEn     String
+  highlightZh     String
+  heroImageUrl    String
+  published       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  images DealCaseImage[]
+}
+
+model DealCaseImage {
+  id         String   @id @default(cuid())
+  dealCaseId String
+  url        String
+  altEn      String
+  altZh      String
+  sortOrder  Int      @default(0)
+
+  dealCase DealCase @relation(fields: [dealCaseId], references: [id], onDelete: Cascade)
+
+  @@index([dealCaseId, sortOrder])
+}
+
 enum ChatSessionStatus {
   ACTIVE
   ARCHIVED

@@ -15,9 +15,14 @@ final class AppState: ObservableObject {
   @Published var recommendationsLoading = false
   @Published var recommendationError: Error?
 
+  @Published var dealCases: [DealCase] = []
+  @Published var dealCasesLoading = false
+  @Published var dealCasesError: Error?
+
   private let authService: AuthService
   private let recommendationService: RecommendationService
   private let chatService: ChatService
+  private let dealCaseService: DealCaseService
   private let configuration: AppConfiguration
 
   private var hasBootstrapped = false
@@ -28,6 +33,7 @@ final class AppState: ObservableObject {
     self.authService = AuthService(apiClient: apiClient, configuration: configuration)
     self.recommendationService = RecommendationService(apiClient: apiClient)
     self.chatService = ChatService(apiClient: apiClient)
+    self.dealCaseService = DealCaseService(apiClient: apiClient)
   }
 
   func bootstrapIfNeeded() async {
@@ -42,6 +48,7 @@ final class AppState: ObservableObject {
         self.session = session
         await loadChat(force: true)
         await loadRecommendations(force: true)
+        await loadDealCases(force: true)
       } else {
         clearSessionState()
       }
@@ -59,6 +66,7 @@ final class AppState: ObservableObject {
       self.session = session
       await loadChat(force: true)
       await loadRecommendations(force: true)
+      await loadDealCases(force: true)
     } catch {
       authenticationError = error
     }
@@ -136,6 +144,7 @@ final class AppState: ObservableObject {
       chatConversation = updatedConversation
       await loadChat(force: true) // refresh to sync timestamps and ids from server
       await loadRecommendations(force: true)
+      await loadDealCases(force: true)
     } catch {
       chatError = error
       if var conversation = chatConversation {
@@ -172,9 +181,28 @@ final class AppState: ObservableObject {
     recommendationsLoading = false
   }
 
+  func loadDealCases(force: Bool = false) async {
+    guard session != nil else {
+      dealCases = []
+      return
+    }
+    if dealCasesLoading && !force { return }
+    dealCasesLoading = true
+    dealCasesError = nil
+
+    do {
+      dealCases = try await dealCaseService.fetchDealCases(limit: 12)
+    } catch {
+      dealCasesError = error
+    }
+
+    dealCasesLoading = false
+  }
+
   private func clearSessionState() {
     session = nil
     recommendations = []
+    dealCases = []
     chatConversation = nil
     authenticationError = nil
   }
