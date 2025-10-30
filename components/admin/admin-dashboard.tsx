@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { AdminDealCasesManager } from "@/components/admin/deal-cases-manager";
 import { AdminBrokersManager } from "@/components/admin/brokers-manager";
@@ -13,9 +13,31 @@ const tabs = [
 type TabId = (typeof tabs)[number]["id"];
 type Locale = "en" | "zh";
 
+const resolveInitialLocale = (): Locale => {
+  if (typeof window === "undefined") return "en";
+  const stored = window.localStorage.getItem("admin-dashboard-locale");
+  if (stored === "zh" || stored === "en") return stored;
+  if (window.navigator?.language?.toLowerCase().startsWith("zh")) {
+    return "zh";
+  }
+  return "en";
+};
+
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("cases");
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>(() => (typeof window === "undefined" ? "en" : resolveInitialLocale()));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setLocale(resolveInitialLocale());
+  }, []);
+
+  const handleLocaleChange = (code: Locale) => {
+    setLocale(code);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("admin-dashboard-locale", code);
+    }
+  };
 
   const t = (en: string, zh: string) => (locale === "zh" ? zh : en);
 
@@ -34,7 +56,7 @@ export function AdminDashboard() {
               <button
                 key={code}
                 type="button"
-                onClick={() => setLocale(code)}
+                onClick={() => handleLocaleChange(code)}
                 className={clsx(
                   "rounded-full px-3 py-1 text-xs font-medium transition",
                   locale === code
