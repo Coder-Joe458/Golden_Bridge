@@ -517,6 +517,23 @@ export function DealsShowcase({ locale, t, className }: DealsShowcaseProps) {
                 />
               </div>
 
+              {localizedGallery.length > 1 && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {localizedGallery.slice(1).map((image, index) => (
+                    <div key={`${activeDeal.id}-desktop-thumb-${index}`} className="relative h-28 overflow-hidden rounded-xl border border-white/10">
+                      <Image
+                        src={image.src}
+                        alt={image.alt}
+                        fill
+                        sizes="210px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-widest text-slate-400">{t("Location", "城市")}</p>
