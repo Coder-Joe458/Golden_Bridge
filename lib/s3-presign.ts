@@ -16,10 +16,10 @@ const hasS3Credentials = Boolean(region && accessKeyId && secretAccessKey);
 
 const s3Client = hasS3Credentials
   ? new S3Client({
-      region,
+      region: region!,
       credentials: {
-        accessKeyId,
-        secretAccessKey
+        accessKeyId: accessKeyId!,
+        secretAccessKey: secretAccessKey!
       }
     })
   : null;
@@ -86,4 +86,3 @@ export const getSignedImageUrl = async (url: string): Promise<string> => {
     return url;
   }
 };
-
