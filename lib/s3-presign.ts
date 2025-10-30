@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type ParsedS3Url =
@@ -11,6 +11,7 @@ type ParsedS3Url =
 const region = process.env.AWS_REGION;
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const dealImageBucket = process.env.DEAL_IMAGE_BUCKET;
 
 const hasS3Credentials = Boolean(region && accessKeyId && secretAccessKey);
 
@@ -31,7 +32,7 @@ const SIGNED_URL_TTL_SECONDS = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 60 * 60 * 24) : 3600;
 })();
 
-const parseS3Url = (input: string): ParsedS3Url => {
+export const parseS3Url = (input: string): ParsedS3Url => {
   try {
     const url = new URL(input);
     const { hostname, pathname } = url;
@@ -85,4 +86,51 @@ export const getSignedImageUrl = async (url: string): Promise<string> => {
     console.error("Failed to presign S3 object", { url, error });
     return url;
   }
+};
+
+const ensureS3Client = () => {
+  if (!s3Client || !region || !dealImageBucket) {
+    throw new Error("S3 client is not configured. Ensure AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEAL_IMAGE_BUCKET are set.");
+  }
+  return s3Client;
+};
+
+export const getDealImageBucket = () => {
+  if (!dealImageBucket) {
+    throw new Error("DEAL_IMAGE_BUCKET is not configured");
+  }
+  return dealImageBucket;
+};
+
+export const buildDealImageUrl = (key: string) => {
+  if (!region || !dealImageBucket) {
+    return key;
+  }
+  return `https://${dealImageBucket}.s3.${region}.amazonaws.com/${key}`;
+};
+
+export const uploadDealImage = async (key: string, body: Buffer, contentType: string) => {
+  const client = ensureS3Client();
+  const bucket = getDealImageBucket();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      ACL: "private"
+    })
+  );
+  return buildDealImageUrl(key);
+};
+
+export const deleteDealImage = async (key: string) => {
+  const client = ensureS3Client();
+  const bucket = getDealImageBucket();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: key
+    })
+  );
 };
