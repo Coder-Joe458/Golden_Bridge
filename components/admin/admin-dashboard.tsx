@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { AdminDealCasesManager } from "@/components/admin/deal-cases-manager";
 import { AdminBrokersManager } from "@/components/admin/brokers-manager";
+import { AdminPasswordForm } from "@/components/admin/password-form";
 
 const tabs = [
   { id: "cases", label: "Deal Cases" },
@@ -87,6 +88,8 @@ export function AdminDashboard() {
           </nav>
         </div>
       </header>
+
+      <AdminPasswordForm locale={locale} />
 
       <section className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20">
         {activeTab === "cases" ? (

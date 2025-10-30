@@ -1064,7 +1064,7 @@ function BorrowerHome({ session }: { session: Session | null }): JSX.Element {
                       href="/dashboard/admin"
                       className="rounded-full border border-brand-primary/40 px-4 py-2 text-sm font-semibold text-brand-primary transition hover:-translate-y-0.5 hover:bg-brand-primary/10"
                     >
-                      Admin dashboard
+                      {t("Admin dashboard", "后台控制台")}
                     </Link>
                   )}
                   <button
