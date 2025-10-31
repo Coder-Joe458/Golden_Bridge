@@ -72,6 +72,7 @@ final class APIClient {
 
   private func rawSend(_ request: APIRequest) async throws -> (Data, URLResponse) {
     let url = url(for: request.path, queryItems: request.queryItems)
+    print("[API] \(request.method.rawValue) \(url.absoluteString)")
     var urlRequest = URLRequest(url: url)
     urlRequest.httpMethod = request.method.rawValue
     urlRequest.httpShouldHandleCookies = true
@@ -86,7 +87,11 @@ final class APIClient {
     }
     urlRequest.allHTTPHeaderFields = headers
 
-    return try await session.data(for: urlRequest)
+    let (data, response) = try await session.data(for: urlRequest)
+    if let http = response as? HTTPURLResponse {
+      print("[API] <-- \(http.statusCode) \(url.absoluteString)")
+    }
+    return (data, response)
   }
 
   private func url(for path: String, queryItems: [URLQueryItem]?) -> URL {

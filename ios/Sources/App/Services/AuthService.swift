@@ -35,6 +35,7 @@ final class AuthService {
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIError.invalidResponse
     }
+    print("[Auth] csrf response status: \(httpResponse.statusCode)")
     if let location = httpResponse.value(forHTTPHeaderField: "Location"),
        let redirectURL = URL(string: location) {
       var redirectRequest = URLRequest(url: redirectURL)
@@ -63,6 +64,7 @@ final class AuthService {
     guard let httpResponse = response as? HTTPURLResponse else {
       throw APIError.invalidResponse
     }
+    print("[Auth] csrf response status: \(httpResponse.statusCode)")
 
     if httpResponse.statusCode == 200 {
       if data == Data("null".utf8) { return nil }
@@ -98,6 +100,7 @@ final class AuthService {
 
     let (data, response) = try await session.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+    print("[Auth] signIn response status: \(httpResponse.statusCode)")
 
     var resolvedData = data
     var resolvedHTTP = httpResponse

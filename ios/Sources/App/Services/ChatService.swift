@@ -12,6 +12,7 @@ final class ChatService {
   }
 
   func loadSession() async throws -> ChatConversationPayload {
+    print("[Service] request "ChatService" -> /")
     let request = APIRequest(path: "api/chat/session")
     return try await apiClient.send(request, responseType: ChatConversationPayload.self)
   }
