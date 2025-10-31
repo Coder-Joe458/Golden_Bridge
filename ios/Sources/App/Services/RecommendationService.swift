@@ -28,7 +28,7 @@ final class RecommendationService {
   func fetchRecommendations(summary: RecommendationRequest.SummaryPayload, variant: Int = 0) async throws -> [Recommendation] {
     let payload = RecommendationRequest(summary: summary, variant: variant)
     let body = try encoder.encode(payload)
-    print("[Service] request "RecommendationService" -> /")
+    print("[Service] request RecommendationService -> /")
     let request = APIRequest(path: "api/recommendations", method: .post, headers: ["Content-Type": "application/json"], body: body)
     let response: RecommendationPayload = try await apiClient.send(request, responseType: RecommendationPayload.self)
     return response.recommendations
