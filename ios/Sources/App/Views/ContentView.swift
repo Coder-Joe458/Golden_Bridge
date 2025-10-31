@@ -18,10 +18,10 @@ struct ContentView: View {
         if appState.session != nil {
           DashboardView(selectedTab: $selectedTab)
         } else {
-          SignInForm(identifier: $identifier, password: $password)
+          SignInScreen(identifier: $identifier, password: $password)
         }
       }
-      .navigationTitle("Golden Bridge")
+      .navigationBarHidden(appState.session == nil)
       .toolbar {
         if appState.session != nil {
           ToolbarItem(placement: .navigationBarTrailing) {
@@ -35,39 +35,167 @@ struct ContentView: View {
   }
 }
 
-private struct SignInForm: View {
+private struct SignInScreen: View {
   @EnvironmentObject private var appState: AppState
   @Binding var identifier: String
   @Binding var password: String
 
   var body: some View {
-    Form {
-      Section(header: Text("账户")) {
-        TextField("邮箱或手机号", text: $identifier)
-          .keyboardType(.emailAddress)
-          .textContentType(.username)
-          .textInputAutocapitalization(.never)
-        SecureField("密码", text: $password)
-          .textContentType(.password)
-      }
+    ZStack {
+      LinearGradient(
+        gradient: Gradient(colors: [
+          Color(red: 8 / 255, green: 13 / 255, blue: 26 / 255),
+          Color(red: 14 / 255, green: 20 / 255, blue: 39 / 255)
+        ]),
+        startPoint: .top,
+        endPoint: .bottom
+      )
+      .ignoresSafeArea()
 
-      if let error = appState.authenticationError {
-        Text(error.localizedDescription)
-          .foregroundColor(.red)
-      }
+      ScrollView {
+        VStack(spacing: 28) {
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Golden Bridge")
+              .font(.system(size: 34, weight: .bold, design: .rounded))
+              .foregroundColor(.white)
+            Text("登录继续智能撮合体验")
+              .font(.subheadline)
+              .foregroundColor(Color.white.opacity(0.6))
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
 
-      Button {
-        Task { await appState.signIn(identifier: identifier, password: password) }
-      } label: {
-        if appState.isAuthenticating {
-          ProgressView()
+          VStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 12) {
+              FloatingLabelField(
+                title: "账户",
+                text: $identifier,
+                placeholder: "you@company.com 或 +1 (555) 555-1234",
+                isSecure: false
+              )
+              FloatingLabelField(
+                title: "密码",
+                text: $password,
+                placeholder: "至少 8 位字符",
+                isSecure: true
+              )
+            }
+
+            if let error = appState.authenticationError {
+              HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                  .foregroundColor(.white)
+                  .imageScale(.small)
+                  .padding(.top, 2)
+                Text(error.localizedDescription)
+                  .font(.footnote)
+                  .foregroundColor(.white)
+                  .multilineTextAlignment(.leading)
+              }
+              .padding()
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .background(Color.red.opacity(0.28))
+              .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+              .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                  .stroke(Color.red.opacity(0.4), lineWidth: 1)
+              )
+            }
+
+            Button {
+              Task { await appState.signIn(identifier: identifier, password: password) }
+            } label: {
+              if appState.isAuthenticating {
+                ProgressView()
+                  .progressViewStyle(.circular)
+                  .tint(Color(red: 21 / 255, green: 30 / 255, blue: 46 / 255))
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, 16)
+              } else {
+                Text("登录")
+                  .font(.system(size: 17, weight: .semibold))
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, 16)
+              }
+            }
+            .buttonStyle(.plain)
+            .background(
+              LinearGradient(
+                colors: [
+                  Color(red: 116 / 255, green: 233 / 255, blue: 255 / 255),
+                  Color(red: 94 / 255, green: 205 / 255, blue: 250 / 255)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+              )
+            )
+            .foregroundColor(Color(red: 13 / 255, green: 33 / 255, blue: 52 / 255))
+            .clipShape(Capsule())
+            .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 12)
+            .disabled(appState.isAuthenticating || identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
+            .opacity(appState.isAuthenticating || identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty ? 0.7 : 1)
+          }
+          .padding(24)
+          .background(Color(red: 19 / 255, green: 28 / 255, blue: 51 / 255).opacity(0.8))
+          .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+          .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+              .stroke(Color.white.opacity(0.08))
+          )
+          .shadow(color: Color.black.opacity(0.35), radius: 30, x: 0, y: 30)
+
+          Text("首次使用？请至网页端完成注册")
+            .font(.footnote)
+            .foregroundColor(Color.white.opacity(0.5))
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 80)
+        .padding(.bottom, 40)
+      }
+    }
+  }
+}
+
+private struct FloatingLabelField: View {
+  let title: String
+  @Binding var text: String
+  let placeholder: String
+  let isSecure: Bool
+
+  @FocusState private var isFocused: Bool
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(title)
+        .font(.caption)
+        .foregroundColor(Color.white.opacity(0.7))
+
+      VStack(alignment: .leading, spacing: 6) {
+        if isSecure {
+          SecureField(placeholder, text: $text)
+            .focused($isFocused)
+            .textContentType(.password)
+            .textInputAutocapitalization(.never)
+            .foregroundColor(.white)
+            .keyboardType(.default)
         } else {
-          Text("登录")
-            .frame(maxWidth: .infinity)
+          TextField(placeholder, text: $text)
+            .focused($isFocused)
+            .textContentType(.username)
+            .textInputAutocapitalization(.never)
+            .keyboardType(.emailAddress)
+            .foregroundColor(.white)
         }
       }
-      .disabled(appState.isAuthenticating || identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
+      .padding(.vertical, 14)
+      .overlay(
+        Rectangle()
+          .frame(height: 1)
+          .foregroundColor(isFocused ? Color(red: 94 / 255, green: 205 / 255, blue: 250 / 255) : Color.white.opacity(0.12)),
+        alignment: .bottom
+      )
     }
+    .padding(.horizontal, 6)
   }
 }
 
