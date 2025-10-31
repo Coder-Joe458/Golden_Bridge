@@ -10,7 +10,10 @@ struct ContentView: View {
     if #available(iOS 16, *) {
       return Locale.current.language.languageCode?.identifier.lowercased() ?? "en"
     }
-    return Locale.current.languageCode?.lowercased() ?? "en"
+    if let preferred = Locale.preferredLanguages.first {
+      return preferred.split(separator: "-").first?.lowercased() ?? "en"
+    }
+    return Locale.current.identifier.split(separator: "_").first?.lowercased() ?? "en"
   }
 
   var body: some View {
@@ -148,7 +151,7 @@ struct BorrowerExperienceView: View {
             localeCode: localeCode,
             recommendations: appState.recommendations,
             isLoading: appState.recommendationsLoading,
-            error: appState.recommendationError,
+            error: appState.recommendationError?.localizedDescription,
             onRefresh: {
               Task { await appState.loadRecommendations(force: true) }
             }
