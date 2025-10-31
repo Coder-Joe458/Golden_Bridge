@@ -193,13 +193,13 @@ private struct HeroSection: View {
   private let metrics = ["Rate", "Speed", "Documentation", "Broker Fit", "Success", "Closing Confidence"]
 
   private func metricScore(_ label: String) -> String {
-    var hash = 0
+    var hash: UInt32 = 0
     for scalar in label.unicodeScalars {
-      hash = (hash << 5) - hash + Int(scalar.value)
+      hash = ((hash << 5) & 0xFFFF_FFFF) &+ UInt32(scalar.value)
     }
-    let base = 85
-    let range = 15
-    let value = base + abs(hash) % range
+    let base: UInt32 = 85
+    let range: UInt32 = 15
+    let value = Int(base + (hash % range))
     return "\(value)"
   }
 
