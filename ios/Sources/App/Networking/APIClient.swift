@@ -10,12 +10,14 @@ struct APIRequest {
   var method: HTTPMethod = .get
   var headers: [String: String] = [:]
   var body: Data? = nil
+  var queryItems: [URLQueryItem]? = nil
 
-  init(path: String, method: HTTPMethod = .get, headers: [String: String] = [:], body: Data? = nil) {
+  init(path: String, method: HTTPMethod = .get, headers: [String: String] = [:], body: Data? = nil, queryItems: [URLQueryItem]? = nil) {
     self.path = path
     self.method = method
     self.headers = headers
     self.body = body
+    self.queryItems = queryItems
   }
 }
 
@@ -69,7 +71,7 @@ final class APIClient {
   }
 
   private func rawSend(_ request: APIRequest) async throws -> (Data, URLResponse) {
-    let url = url(for: request.path)
+    let url = url(for: request.path, queryItems: request.queryItems)
     var urlRequest = URLRequest(url: url)
     urlRequest.httpMethod = request.method.rawValue
     urlRequest.httpShouldHandleCookies = true
@@ -87,9 +89,19 @@ final class APIClient {
     return try await session.data(for: urlRequest)
   }
 
-  private func url(for path: String) -> URL {
+  private func url(for path: String, queryItems: [URLQueryItem]?) -> URL {
     let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     guard !trimmed.isEmpty else { return configuration.apiBaseURL }
-    return configuration.apiBaseURL.appendingPathComponent(trimmed)
+
+    var components = URLComponents()
+    components.scheme = configuration.apiBaseURL.scheme
+    components.host = configuration.apiBaseURL.host
+    components.port = configuration.apiBaseURL.port
+    components.path = configuration.apiBaseURL.appendingPathComponent(trimmed).path
+    if let queryItems, !queryItems.isEmpty {
+      components.queryItems = queryItems
+    }
+
+    return components.url ?? configuration.apiBaseURL.appendingPathComponent(trimmed)
   }
 }

@@ -9,11 +9,10 @@ final class DealCaseService {
   }
 
   func fetchDealCases(limit: Int = 12) async throws -> [DealCase] {
-    var path = "api/deal-cases"
-    if limit > 0 {
-      path.append("?limit=\(limit)")
-    }
-    let request = APIRequest(path: path)
+    let request = APIRequest(
+      path: "api/deal-cases",
+      queryItems: limit > 0 ? [URLQueryItem(name: "limit", value: String(limit))] : nil
+    )
     let payload: DealCasePayload = try await apiClient.send(request, responseType: DealCasePayload.self)
     return payload.cases
   }

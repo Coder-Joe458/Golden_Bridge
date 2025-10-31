@@ -32,11 +32,23 @@ final class AuthService {
     request.httpMethod = "GET"
     request.httpShouldHandleCookies = true
     let (data, response) = try await session.data(for: request)
-    guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+    guard let httpResponse = response as? HTTPURLResponse else {
       throw APIError.invalidResponse
     }
-    let csrf = try decoder.decode(CSRFResponse.self, from: data)
-    return csrf.csrfToken
+    if let location = httpResponse.value(forHTTPHeaderField: "Location"),
+       let redirectURL = URL(string: location) {
+      var redirectRequest = URLRequest(url: redirectURL)
+      redirectRequest.httpShouldHandleCookies = true
+      let (redirectData, redirectResponse) = try await session.data(for: redirectRequest)
+      guard let redirectHTTP = redirectResponse as? HTTPURLResponse, (200..<300).contains(redirectHTTP.statusCode) else {
+        throw APIError.invalidResponse
+      }
+      return try decoder.decode(CSRFResponse.self, from: redirectData).csrfToken
+    }
+    guard (200..<300).contains(httpResponse.statusCode) else {
+      throw APIError.invalidResponse
+    }
+    return try decoder.decode(CSRFResponse.self, from: data).csrfToken
   }
 
   @MainActor
@@ -87,16 +99,28 @@ final class AuthService {
     let (data, response) = try await session.data(for: request)
     guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
 
-    if httpResponse.statusCode == 401 {
+    var resolvedData = data
+    var resolvedHTTP = httpResponse
+
+    if let location = httpResponse.value(forHTTPHeaderField: "Location"), let redirectURL = URL(string: location) {
+      var redirectRequest = URLRequest(url: redirectURL)
+      redirectRequest.httpShouldHandleCookies = true
+      let (redirectData, redirectResponse) = try await session.data(for: redirectRequest)
+      guard let redirectHTTP = redirectResponse as? HTTPURLResponse else { throw APIError.invalidResponse }
+      resolvedData = redirectData
+      resolvedHTTP = redirectHTTP
+    }
+
+    if resolvedHTTP.statusCode == 401 {
       throw APIError.unauthorized
     }
 
-    guard (200..<300).contains(httpResponse.statusCode) else {
-      let message = String(data: data, encoding: .utf8) ?? ""
+    guard (200..<300).contains(resolvedHTTP.statusCode) else {
+      let message = String(data: resolvedData, encoding: .utf8) ?? ""
       throw APIError.message(message.isEmpty ? "登录失败" : message)
     }
 
-    return try decoder.decode(UserSession.self, from: data)
+    return try decoder.decode(UserSession.self, from: resolvedData)
   }
 
   func signOut() async {
