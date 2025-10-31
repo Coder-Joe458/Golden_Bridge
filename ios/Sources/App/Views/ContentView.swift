@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
   @EnvironmentObject private var appState: AppState
@@ -487,17 +488,19 @@ private struct ChatConsoleSection: View {
         Text(isChinese ? "快速补充要点" : "Suggested prompts")
           .font(.system(size: 12))
           .foregroundColor(Color.white.opacity(0.6))
-        WrapView(data: questions, spacing: 8) { prompt in
-          Button {
-            onQuickPrompt(prompt)
-          } label: {
-            Text(prompt)
-              .font(.system(size: 12))
-              .foregroundColor(.white)
-              .padding(.horizontal, 12)
-              .padding(.vertical, 8)
-              .background(Color.white.opacity(0.08))
-              .clipShape(Capsule())
+        TagLayout(spacing: 8) {
+          ForEach(questions, id: \.self) { prompt in
+            Button {
+              onQuickPrompt(prompt)
+            } label: {
+              Text(prompt)
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.08))
+                .clipShape(Capsule())
+            }
           }
         }
       }
@@ -816,14 +819,16 @@ private struct RecommendationCard: View {
       }
 
       if !recommendation.loanPrograms.isEmpty {
-        WrapView(data: Array(recommendation.loanPrograms.prefix(4)), spacing: 8) { program in
-          Text(isChinese ? translateProgram(program) : program)
-            .font(.system(size: 11))
-            .foregroundColor(Color.white.opacity(0.8))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.white.opacity(0.08))
-            .clipShape(Capsule())
+        TagLayout(spacing: 8) {
+          ForEach(Array(recommendation.loanPrograms.prefix(4)), id: \.self) { program in
+            Text(isChinese ? translateProgram(program) : program)
+              .font(.system(size: 11))
+              .foregroundColor(Color.white.opacity(0.8))
+              .padding(.horizontal, 10)
+              .padding(.vertical, 6)
+              .background(Color.white.opacity(0.08))
+              .clipShape(Capsule())
+          }
         }
       }
     }
@@ -1176,50 +1181,58 @@ private struct SignInSheet: View {
 
 // MARK: - Helpers
 
-private struct WrapView<Data: RandomAccessCollection, Content: View>: View where Data.Element: Hashable {
-  let data: Data
-  let spacing: CGFloat
-  let content: (Data.Element) -> Content
+struct TagLayout: Layout {
+  var spacing: CGFloat = 8
 
-  init(data: Data, spacing: CGFloat, @ViewBuilder content: @escaping (Data.Element) -> Content) {
-    self.data = data
-    self.spacing = spacing
-    self.content = content
+  struct Cache {
+    var width: CGFloat = 0
   }
 
-  var body: some View {
-    GeometryReader { geometry in
-      var width = CGFloat.zero
-      var height = CGFloat.zero
-      ZStack(alignment: .topLeading) {
-        ForEach(Array(data), id: \.self) { element in
-          content(element)
-            .alignmentGuide(.leading) { dimension in
-              if abs(width - dimension.width) > geometry.size.width {
-                width = 0
-                height -= dimension.height + spacing
-              }
-              let result = width
-              if element == data.last {
-                width = 0
-              } else {
-                width -= dimension.width + spacing
-              }
-              return result
-            }
-            .alignmentGuide(.top) { _ in
-              defer {
-                if element == data.last {
-                  height = 0
-                }
-              }
-              let result = height
-              return result
-            }
-        }
+  func makeCache(subviews: Subviews) -> Cache {
+    Cache()
+  }
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
+    let maxWidth = proposal.width ?? cache.width
+    let availableWidth = maxWidth > 0 ? maxWidth : UIScreen.main.bounds.width - 40
+
+    cache.width = availableWidth
+
+    var currentX: CGFloat = 0
+    var currentY: CGFloat = 0
+    var lineHeight: CGFloat = 0
+
+    for subview in subviews {
+      let size = subview.sizeThatFits(ProposedViewSize(width: availableWidth, height: nil))
+      if currentX + size.width > availableWidth, currentX > 0 {
+        currentX = 0
+        currentY += lineHeight + spacing
+        lineHeight = 0
       }
+      lineHeight = max(lineHeight, size.height)
+      currentX += size.width + spacing
     }
-    .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+
+    return CGSize(width: availableWidth, height: currentY + lineHeight)
+  }
+
+  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
+    let availableWidth = cache.width > 0 ? cache.width : bounds.width
+    var currentX: CGFloat = bounds.minX
+    var currentY: CGFloat = bounds.minY
+    var lineHeight: CGFloat = 0
+
+    for subview in subviews {
+      let size = subview.sizeThatFits(ProposedViewSize(width: availableWidth, height: nil))
+      if currentX + size.width > bounds.minX + availableWidth, currentX > bounds.minX {
+        currentX = bounds.minX
+        currentY += lineHeight + spacing
+        lineHeight = 0
+      }
+      subview.place(at: CGPoint(x: currentX, y: currentY), proposal: ProposedViewSize(width: size.width, height: size.height))
+      currentX += size.width + spacing
+      lineHeight = max(lineHeight, size.height)
+    }
   }
 }
 
