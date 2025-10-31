@@ -42,63 +42,47 @@ private struct SignInScreen: View {
 
   var body: some View {
     ZStack {
-      LinearGradient(
-        gradient: Gradient(colors: [
-          Color(red: 8 / 255, green: 13 / 255, blue: 26 / 255),
-          Color(red: 14 / 255, green: 20 / 255, blue: 39 / 255)
-        ]),
-        startPoint: .top,
-        endPoint: .bottom
-      )
-      .ignoresSafeArea()
+      Color(red: 2 / 255, green: 6 / 255, blue: 23 / 255)
+        .ignoresSafeArea()
 
       ScrollView {
-        VStack(spacing: 28) {
-          VStack(alignment: .leading, spacing: 8) {
-            Text("Golden Bridge")
-              .font(.system(size: 34, weight: .bold, design: .rounded))
+        VStack(spacing: 24) {
+          VStack(alignment: .leading, spacing: 10) {
+            Text("Welcome back")
+              .font(.system(size: 30, weight: .semibold))
               .foregroundColor(.white)
-            Text("登录继续智能撮合体验")
-              .font(.subheadline)
-              .foregroundColor(Color.white.opacity(0.6))
+            Text("Sign in to continue orchestrating borrower journeys with Golden Bridge.")
+              .font(.system(size: 14))
+              .foregroundColor(Color.white.opacity(0.55))
           }
           .frame(maxWidth: .infinity, alignment: .leading)
 
-          VStack(spacing: 18) {
-            VStack(alignment: .leading, spacing: 12) {
-              FloatingLabelField(
-                title: "账户",
-                text: $identifier,
-                placeholder: "you@company.com 或 +1 (555) 555-1234",
-                isSecure: false
-              )
-              FloatingLabelField(
-                title: "密码",
-                text: $password,
-                placeholder: "至少 8 位字符",
-                isSecure: true
-              )
-            }
+          VStack(alignment: .leading, spacing: 22) {
+            LabeledField(
+              title: "Email or US phone",
+              text: $identifier,
+              placeholder: "you@company.com or +1 (555) 555-1234",
+              isSecure: false
+            )
+            LabeledField(
+              title: "Password",
+              text: $password,
+              placeholder: "Minimum 8 characters",
+              isSecure: true
+            )
 
             if let error = appState.authenticationError {
-              HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                  .foregroundColor(.white)
-                  .imageScale(.small)
-                  .padding(.top, 2)
-                Text(error.localizedDescription)
-                  .font(.footnote)
-                  .foregroundColor(.white)
-                  .multilineTextAlignment(.leading)
-              }
-              .padding()
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .background(Color.red.opacity(0.28))
-              .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-              .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                  .stroke(Color.red.opacity(0.4), lineWidth: 1)
-              )
+              Text(error.localizedDescription)
+                .font(.system(size: 13))
+                .foregroundColor(Color(red: 248 / 255, green: 113 / 255, blue: 113 / 255))
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(red: 248 / 255, green: 113 / 255, blue: 113 / 255).opacity(0.12))
+                .overlay(
+                  RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color(red: 248 / 255, green: 113 / 255, blue: 113 / 255).opacity(0.4), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
 
             Button {
@@ -107,56 +91,46 @@ private struct SignInScreen: View {
               if appState.isAuthenticating {
                 ProgressView()
                   .progressViewStyle(.circular)
-                  .tint(Color(red: 21 / 255, green: 30 / 255, blue: 46 / 255))
+                  .tint(Color(red: 10 / 255, green: 30 / 255, blue: 45 / 255))
                   .frame(maxWidth: .infinity)
-                  .padding(.vertical, 16)
+                  .padding(.vertical, 14)
               } else {
-                Text("登录")
-                  .font(.system(size: 17, weight: .semibold))
+                Text("Sign in")
+                  .font(.system(size: 15, weight: .semibold))
                   .frame(maxWidth: .infinity)
-                  .padding(.vertical, 16)
+                  .padding(.vertical, 14)
               }
             }
             .buttonStyle(.plain)
-            .background(
-              LinearGradient(
-                colors: [
-                  Color(red: 116 / 255, green: 233 / 255, blue: 255 / 255),
-                  Color(red: 94 / 255, green: 205 / 255, blue: 250 / 255)
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-              )
-            )
-            .foregroundColor(Color(red: 13 / 255, green: 33 / 255, blue: 52 / 255))
+            .background(Color(red: 54 / 255, green: 232 / 255, blue: 255 / 255))
+            .foregroundColor(Color(red: 6 / 255, green: 20 / 255, blue: 29 / 255))
             .clipShape(Capsule())
-            .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 12)
+            .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 12)
             .disabled(appState.isAuthenticating || identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
             .opacity(appState.isAuthenticating || identifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty ? 0.7 : 1)
           }
-          .padding(24)
-          .background(Color(red: 19 / 255, green: 28 / 255, blue: 51 / 255).opacity(0.8))
-          .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+          .padding(26)
+          .background(Color(red: 15 / 255, green: 23 / 255, blue: 42 / 255).opacity(0.78))
           .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-              .stroke(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
+              .stroke(Color.white.opacity(0.08), lineWidth: 1)
           )
-          .shadow(color: Color.black.opacity(0.35), radius: 30, x: 0, y: 30)
+          .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+          .shadow(color: Color.black.opacity(0.35), radius: 26, x: 0, y: 20)
 
-          Text("首次使用？请至网页端完成注册")
-            .font(.footnote)
-            .foregroundColor(Color.white.opacity(0.5))
+          Text("New to Golden Bridge? Visit goldenbridge.ai to create an account.")
+            .font(.system(size: 13))
+            .foregroundColor(Color.white.opacity(0.55))
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 80)
-        .padding(.bottom, 40)
+        .padding(.vertical, 60)
       }
     }
   }
 }
 
-private struct FloatingLabelField: View {
+private struct LabeledField: View {
   let title: String
   @Binding var text: String
   let placeholder: String
@@ -167,35 +141,45 @@ private struct FloatingLabelField: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       Text(title)
-        .font(.caption)
-        .foregroundColor(Color.white.opacity(0.7))
+        .font(.system(size: 13, weight: .medium))
+        .foregroundColor(Color.white.opacity(0.75))
 
-      VStack(alignment: .leading, spacing: 6) {
-        if isSecure {
-          SecureField(placeholder, text: $text)
-            .focused($isFocused)
-            .textContentType(.password)
-            .textInputAutocapitalization(.never)
-            .foregroundColor(.white)
-            .keyboardType(.default)
-        } else {
-          TextField(placeholder, text: $text)
-            .focused($isFocused)
-            .textContentType(.username)
-            .textInputAutocapitalization(.never)
-            .keyboardType(.emailAddress)
-            .foregroundColor(.white)
-        }
+      if isSecure {
+        SecureField(placeholder, text: $text)
+          .focused($isFocused)
+          .textContentType(.password)
+          .textInputAutocapitalization(.never)
+          .foregroundColor(.white)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 12)
+          .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+              .fill(Color(red: 5 / 255, green: 11 / 255, blue: 26 / 255).opacity(0.7))
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+              .stroke(isFocused ? Color(red: 96 / 255, green: 165 / 255, blue: 250 / 255) : Color.white.opacity(0.12), lineWidth: 1)
+          )
+      } else {
+        TextField(placeholder, text: $text)
+          .focused($isFocused)
+          .textContentType(.username)
+          .textInputAutocapitalization(.never)
+          .keyboardType(.emailAddress)
+          .foregroundColor(.white)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 12)
+          .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+              .fill(Color(red: 5 / 255, green: 11 / 255, blue: 26 / 255).opacity(0.7))
+          )
+          .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+              .stroke(isFocused ? Color(red: 96 / 255, green: 165 / 255, blue: 250 / 255) : Color.white.opacity(0.12), lineWidth: 1)
+          )
       }
-      .padding(.vertical, 14)
-      .overlay(
-        Rectangle()
-          .frame(height: 1)
-          .foregroundColor(isFocused ? Color(red: 94 / 255, green: 205 / 255, blue: 250 / 255) : Color.white.opacity(0.12)),
-        alignment: .bottom
-      )
     }
-    .padding(.horizontal, 6)
+    .padding(.horizontal, 2)
   }
 }
 
